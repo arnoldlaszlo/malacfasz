@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NTP Clock - Vásárosdombó</title>
+    <link href="https://fonts.googleapis.com/css2?family=B612:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --secondary-color: #888888;
+            --accent-color: #ff9500; /* Stopper narancssárga színe */
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'B612', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            touch-action: manipulation;
+        }
+
+        .top-info {
+            padding-top: 40px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #location {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-color);
+        }
+
+        .main-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        #date {
+            font-size: 1.2rem;
+            letter-spacing: 3px;
+            color: var(--secondary-color);
+        }
+
+        #day {
+            font-size: 1.4rem;
+            font-weight: 400;
+        }
+
+        #time {
+            font-size: clamp(3.5rem, 15vw, 6.5rem);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+            line-height: 1;
+            cursor: pointer; /* Jelezzük, hogy koppintható */
+        }
+
+        #stopwatch {
+            font-size: clamp(3.5rem, 15vw, 6.5rem);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+            line-height: 1;
+            color: var(--accent-color);
+            margin-top: 15px;
+            cursor: pointer;
+            display: none; /* Alapból rejtett */
+        }
+
+        .bottom-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bottom-container {
+            width: 100%;
+            padding: 0 30px 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            box-sizing: border-box;
+        }
+
+        .sun-box {
+            display: flex;
+            flex-direction: column;
+            max-width: 45%;
+        }
+
+        .sun-box.left { text-align: left; }
+        .sun-box.right { text-align: right; }
+
+        .sun-label {
+            font-size: 0.7rem;
+            color: var(--secondary-color);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .sun-time {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .sun-countdown {
+            font-size: 0.8rem;
+            color: var(--secondary-color);
+            font-variant-numeric: tabular-nums;
+        }
+
+        #utc-time {
+            text-align: center;
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            font-weight: 400;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 1px;
+            color: var(--secondary-color);
+            padding-bottom: 30px; /* Alul hagyunk kis helyet */
+        }
+
+        #status {
+            position: fixed;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.5rem;
+            color: #222;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-info">
+        <div id="location">VÁSÁROSDOMBÓ</div>
+        <div id="date">----. --. --.</div>
+        <div id="day">------</div>
+    </div>
+
+    <div class="main-display">
+        <div id="time">00:00:00</div>
+        <!-- Számláló (Stopper) -->
+        <div id="stopwatch">00:00:00</div>
+    </div>
+
+    <div class="bottom-wrapper">
+        <div class="bottom-container">
+            <div class="sun-box left">
+                <div class="sun-label">Napkelte</div>
+                <div id="sunrise-time" class="sun-time">--:--</div>
+                <div id="sunrise-elapsed" class="sun-countdown">Eltelt: --:--:--</div>
+            </div>
+
+            <div class="sun-box right">
+                <div class="sun-label">Napnyugta</div>
+                <div id="sunset-time" class="sun-time">--:--</div>
+                <div id="sunset-remaining" class="sun-countdown">Hátralévő: --:--:--</div>
+            </div>
+        </div>
+        
+        <!-- UTC Óra legalul -->
+        <div id="utc-time">00:00:00 UTC</div>
+    </div>
+
+    <div id="status">SZINKRONIZÁLÁS...</div>
+
+    <script>
+        // Vásárosdombó koordinátái
+        const LAT = 46.2482;
+        const LNG = 18.1281;
+
+        let timeOffset = 0;
+        let sunData = {
+            sunrise: null,
+            sunset: null
+        };
+
+        // Stopper változók
+        let swRunning = false;
+        let swStartSec = 0;
+        let swElapsedSec = 0;
+
+        function formatDuration(ms) {
+            if (isNaN(ms) || ms < 0) return "00:00:00";
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        async function syncAllData() {
+            const statusEl = document.getElementById('status');
+            statusEl.style.opacity = '1';
+
+            try {
+                // 1. NTP-alapú idő lekérése
+                const timeResponse = await fetch('https://ipwho.is/');
+                const timeData = await timeResponse.json();
+                
+                if (timeData.success) {
+                    const networkTime = new Date(timeData.timezone.current_time).getTime();
+                    timeOffset = networkTime - Date.now();
+                }
+
+                // 2. Napkelte/Napnyugta adatok Vásárosdombóra
+                const sunResponse = await fetch(`https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&formatted=0`);
+                const sunJson = await sunResponse.json();
+                
+                if (sunJson.status === "OK") {
+                    sunData.sunrise = new Date(sunJson.results.sunrise);
+                    sunData.sunset = new Date(sunJson.results.sunset);
+                    
+                    document.getElementById('sunrise-time').innerText = 
+                        sunData.sunrise.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+                    document.getElementById('sunset-time').innerText = 
+                        sunData.sunset.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+                }
+                
+                statusEl.innerText = "SZINKRONIZÁLVA (VÁSÁROSDOMBÓ)";
+                setTimeout(() => { statusEl.style.opacity = '0'; }, 3000);
+            } catch (error) {
+                console.error("Szinkron hiba:", error);
+                statusEl.innerText = "OFFLINE MÓD";
+            }
+        }
+
+        function updateClock() {
+            const now = new Date(Date.now() + timeOffset);
+            
+            // Fő óra frissítése
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const dayNum = String(now.getDate()).padStart(2, '0');
+            document.getElementById('date').innerText = `${year}. ${month}. ${dayNum}.`;
+
+            const days = ['VASÁRNAP', 'HÉTFŐ', 'KEDD', 'SZERDA', 'CSÜTÖRTÖK', 'PÉNTEK', 'SZOMBAT'];
+            document.getElementById('day').innerText = days[now.getDay()];
+
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('time').innerText = `${h}:${m}:${s}`;
+
+            // UTC óra frissítése
+            const utc_h = String(now.getUTCHours()).padStart(2, '0');
+            const utc_m = String(now.getUTCMinutes()).padStart(2, '0');
+            const utc_s = String(now.getUTCSeconds()).padStart(2, '0');
+            document.getElementById('utc-time').innerText = `${utc_h}:${utc_m}:${utc_s} UTC`;
+
+            // Nap adatok
+            if (sunData.sunrise) {
+                const elapsed = now - sunData.sunrise;
+                document.getElementById('sunrise-elapsed').innerText = (elapsed > 0) ? "Eltelt: " + formatDuration(elapsed) : "Még nem kelt fel";
+            }
+
+            if (sunData.sunset) {
+                const remaining = sunData.sunset - now;
+                document.getElementById('sunset-remaining').innerText = (remaining > 0) ? "Hátralévő: " + formatDuration(remaining) : "Lement a nap";
+            }
+
+            // Stopper frissítése, hogy tizedmásodpercre egyszerre kattanjon a főórával
+            if (swRunning || document.getElementById('stopwatch').style.display === 'block') {
+                let currentElapsedSec = swElapsedSec;
+                if (swRunning) {
+                    currentElapsedSec += Math.floor(now.getTime() / 1000) - swStartSec;
+                }
+                document.getElementById('stopwatch').innerText = formatDuration(currentElapsedSec * 1000);
+            }
+        }
+
+        // --- Stopper eseménykezelők ---
+
+        // Fő órára koppintás: Stopper indítása / újraindítása
+        document.getElementById('time').addEventListener('click', (e) => {
+            e.stopPropagation(); // Ne váltson teljes képernyőre
+            const now = new Date(Date.now() + timeOffset);
+            swElapsedSec = 0;
+            // A másodperc egész részét mentjük el a tökéletes szinkronhoz
+            swStartSec = Math.floor(now.getTime() / 1000);
+            swRunning = true;
+            
+            const swEl = document.getElementById('stopwatch');
+            swEl.style.display = 'block';
+            swEl.innerText = "00:00:00";
+        });
+
+        // Stopperre koppintás: Megállítás vagy Nullázás
+        document.getElementById('stopwatch').addEventListener('click', (e) => {
+            e.stopPropagation(); // Ne váltson teljes képernyőre
+            if (swRunning) {
+                // Megállítás (Szünet)
+                const now = new Date(Date.now() + timeOffset);
+                swElapsedSec += Math.floor(now.getTime() / 1000) - swStartSec;
+                swRunning = false;
+            } else {
+                // Nullázás és elrejtés
+                swElapsedSec = 0;
+                swRunning = false;
+                document.getElementById('stopwatch').style.display = 'none';
+            }
+        });
+
+
+        setInterval(updateClock, 100);
+        syncAllData();
+        setInterval(syncAllData, 1800000);
+
+        // Teljes képernyő csak ha nem az órára vagy stopperre nyomtunk
+        document.body.addEventListener('click', () => {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e => {});
+        });
+    </script>
+</body>
+</html>
