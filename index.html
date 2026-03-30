@@ -64,9 +64,9 @@
         }
 
         #date {
-            font-size: 1.2rem;
+            font-size: 1.5rem;
             letter-spacing: 3px;
-            color: var(--secondary-color);
+            color: var(--text-color);
         }
 
         #day {
@@ -75,16 +75,17 @@
         }
 
         #time {
-            font-size: clamp(3.5rem, 15vw, 6.5rem);
+            font-size: clamp(4rem, 22vw, 12rem);
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             letter-spacing: -2px;
             line-height: 1;
             cursor: pointer; /* Jelezzük, hogy koppintható */
+            white-space: nowrap; /* Hogy véletlenül se törjön több sorba */
         }
 
         #stopwatch {
-            font-size: clamp(3.5rem, 15vw, 6.5rem);
+            font-size: clamp(4rem, 22vw, 12rem);
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             letter-spacing: -2px;
@@ -93,6 +94,7 @@
             margin-top: 15px;
             cursor: pointer;
             display: none; /* Alapból rejtett */
+            white-space: nowrap;
         }
 
         .bottom-wrapper {
