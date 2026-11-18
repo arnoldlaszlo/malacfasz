@@ -1,378 +1,2794 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="hu" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NTP Clock - Vásárosdombó</title>
-    
-    <!-- PWA és iOS Offline Támogatás -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="NTP Óra">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201024%201024%22%3E%3Crect%20width%3D%221024%22%20height%3D%221024%22%20fill%3D%22black%22%2F%3E%3Ctext%20x%3D%22512%22%20y%3D%22550%22%20fill%3D%22white%22%20font-size%3D%22250%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%20font-family%3D%22sans-serif%22%20font-weight%3D%22bold%22%3E%C3%93RA%3C%2Ftext%3E%3C%2Fsvg%3E">
-    <link rel="manifest" href='data:application/json;charset=utf-8,{"name":"NTP%20Óra","short_name":"Óra","display":"standalone","background_color":"%23000000","theme_color":"%23000000"}'>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="LottóMester" />
+  <meta name="theme-color" content="#090A0F" />
+  <title>LottóMester — iOS Szelvény Menedzser</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=B612:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #000000;
-            --text-color: #ffffff;
-            --secondary-color: #888888;
-            --accent-color: #ff9500; /* Stopper narancssárga színe */
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          colors: {
+            oled: {
+              bg: '#090A0F',
+              card: '#141720',
+              elevated: '#1B202C',
+              border: '#232838',
+              muted: '#8B94A8',
+            },
+            game: {
+              otos: '#10B981',
+              hatos: '#EF4444',
+              skandi: '#3B82F6',
+              euro: '#F59E0B',
+              putto: '#F97316',
+              mazli: '#EC4899',
+              keno: '#8B5CF6',
+              joker: '#06B6D4',
+            }
+          }
         }
+      }
+    };
+  </script>
 
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'B612', sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-            touch-action: manipulation;
-        }
+  <style>
+    :root {
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
 
-        .top-info {
-            padding-top: 40px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
 
-        #location {
-            font-size: 1rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-color);
-        }
+    html, body {
+      background-color: #090A0F;
+      color: #F8FAFC;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overscroll-behavior-y: none;
+      margin: 0;
+      padding: 0;
+      min-height: 100dvh;
+    }
 
-        .main-display {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-        }
+    /* Hide scrollbars on horizontal pill containers */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
 
-        #date {
-            font-size: 1.5rem;
-            letter-spacing: 3px;
-            color: var(--text-color);
-        }
+    /* iOS Frosted Glass Bars */
+    .ios-header {
+      padding-top: calc(12px + var(--safe-top));
+      background: rgba(9, 10, 15, 0.84);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(35, 40, 56, 0.85);
+    }
 
-        #day {
-            font-size: 1.4rem;
-            font-weight: 400;
-        }
+    .ios-tabbar {
+      padding-bottom: calc(8px + var(--safe-bottom));
+      background: rgba(14, 17, 25, 0.88);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-top: 1px solid rgba(35, 40, 56, 0.9);
+    }
 
-        #time {
-            font-size: clamp(4rem, 22vw, 12rem);
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -2px;
-            line-height: 1;
-            cursor: pointer; /* Jelezzük, hogy koppintható */
-            white-space: nowrap; /* Hogy véletlenül se törjön több sorba */
-        }
+    .main-scroll {
+      padding-bottom: calc(96px + var(--safe-bottom));
+    }
 
-        #stopwatch {
-            font-size: clamp(4rem, 22vw, 12rem);
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -2px;
-            line-height: 1;
-            color: var(--accent-color);
-            margin-top: 15px;
-            cursor: pointer;
-            display: none; /* Alapból rejtett */
-            white-space: nowrap;
-        }
+    /* Lottery Ball Styling */
+    .lotto-ball {
+      transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+      user-select: none;
+    }
+    .lotto-ball:active {
+      transform: scale(0.9);
+    }
 
-        .bottom-wrapper {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-        }
+    /* Matched / Winning Highlight Glow */
+    .ball-hit {
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+      color: #FFFFFF !important;
+      border-color: #34D399 !important;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      font-weight: 800;
+    }
 
-        .bottom-container {
-            width: 100%;
-            padding: 0 30px 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            box-sizing: border-box;
-        }
+    .ball-hit-gold {
+      background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+      color: #090A0F !important;
+      border-color: #FCD34D !important;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+      font-weight: 800;
+    }
 
-        .sun-box {
-            display: flex;
-            flex-direction: column;
-            max-width: 45%;
-        }
+    /* iOS Toggle Switch */
+    .ios-switch {
+      position: relative;
+      width: 50px;
+      height: 30px;
+      border-radius: 999px;
+      background-color: #232838;
+      transition: background-color 0.22s ease;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .ios-switch.active {
+      background-color: #10B981;
+    }
+    .ios-switch-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .ios-switch.active .ios-switch-thumb {
+      transform: translateX(20px);
+    }
 
-        .sun-box.left { text-align: left; }
-        .sun-box.right { text-align: right; }
+    /* Subtle Card Entrance */
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-card {
+      animation: fadeSlideUp 0.22s ease-out forwards;
+    }
 
-        .sun-label {
-            font-size: 0.7rem;
-            color: var(--secondary-color);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        .sun-time {
-            font-size: 1.1rem;
-            font-weight: 700;
-            margin-bottom: 2px;
-        }
-
-        .sun-countdown {
-            font-size: 0.8rem;
-            color: var(--secondary-color);
-            font-variant-numeric: tabular-nums;
-        }
-
-        #utc-time {
-            text-align: center;
-            font-size: clamp(1rem, 4vw, 1.5rem);
-            font-weight: 400;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: 1px;
-            color: var(--secondary-color);
-            padding-bottom: 30px; /* Alul hagyunk kis helyet */
-        }
-
-        #status {
-            position: fixed;
-            bottom: 5px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.5rem;
-            color: #222;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            pointer-events: none;
-        }
-    </style>
+    /* Pulse warning for last draw */
+    @keyframes pulseBorder {
+      0%, 100% { border-color: rgba(239, 68, 68, 0.55); }
+      50% { border-color: rgba(245, 158, 11, 0.95); }
+    }
+    .last-draw-pulse {
+      animation: pulseBorder 2.2s infinite ease-in-out;
+    }
+  </style>
 </head>
-<body>
+<body class="bg-oled-bg text-slate-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
 
-    <div class="top-info">
-        <div id="location">VÁSÁROSDOMBÓ</div>
-        <div id="date">----. --. --.</div>
-        <div id="day">------</div>
-    </div>
+  <!-- App Container (Centered iPhone-friendly max-width on desktop, full width on mobile) -->
+  <div id="app" class="max-w-lg mx-auto min-h-dvh flex flex-col relative bg-oled-bg shadow-2xl shadow-black">
 
-    <div class="main-display">
-        <div id="time">00:00:00</div>
-        <!-- Számláló (Stopper) -->
-        <div id="stopwatch">00:00:00</div>
-    </div>
-
-    <div class="bottom-wrapper">
-        <div class="bottom-container">
-            <div class="sun-box left">
-                <div class="sun-label">Napkelte</div>
-                <div id="sunrise-time" class="sun-time">--:--</div>
-                <div id="sunrise-elapsed" class="sun-countdown">Eltelt: --:--:--</div>
+    <!-- Sticky iOS Header -->
+    <header class="ios-header sticky top-0 z-30 px-4 pb-3">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-base font-extrabold tracking-tight text-white">LottóMester</h1>
+              <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">PRO</span>
             </div>
-
-            <div class="sun-box right">
-                <div class="sun-label">Napnyugta</div>
-                <div id="sunset-time" class="sun-time">--:--</div>
-                <div id="sunset-remaining" class="sun-countdown">Hátralévő: --:--:--</div>
-            </div>
+            <p id="header-subtitle" class="text-[11px] text-oled-muted font-medium">Szelvény menedzser & találatfigyelő</p>
+          </div>
         </div>
-        
-        <!-- UTC Óra legalul -->
-        <div id="utc-time">00:00:00 UTC</div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="navigateTo('new')" class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition text-slate-950 font-bold text-xs flex items-center gap-1 shadow-md shadow-emerald-500/20">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Új szelvény</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dynamic View -->
+    <main id="main-content" class="flex-1 px-4 pt-4 main-scroll space-y-4">
+      <!-- Populated dynamically by JavaScript -->
+    </main>
+
+    <!-- Bottom iOS Tab Bar -->
+    <nav class="ios-tabbar fixed bottom-0 left-0 right-0 z-40">
+      <div class="max-w-lg mx-auto grid grid-cols-4 px-2 pt-2">
+        <button onclick="navigateTo('tickets')" id="tab-tickets" class="tab-btn flex flex-col items-center justify-center py-1 rounded-xl transition active:scale-95">
+          <div class="relative">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+            <span id="badge-active-count" class="hidden absolute -top-1.5 -right-2.5 min-w-[17px] h-[17px] px-1 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-extrabold flex items-center justify-center">0</span>
+          </div>
+          <span class="text-[10px] font-semibold mt-1">Szelvényeim</span>
+        </button>
+
+        <button onclick="navigateTo('new')" id="tab-new" class="tab-btn flex flex-col items-center justify-center py-1 rounded-xl transition active:scale-95">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="text-[10px] font-semibold mt-1">Új szelvény</span>
+        </button>
+
+        <button onclick="navigateTo('check')" id="tab-check" class="tab-btn flex flex-col items-center justify-center py-1 rounded-xl transition active:scale-95">
+          <div class="relative">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span id="badge-hit-dot" class="hidden absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-oled-bg"></span>
+          </div>
+          <span class="text-[10px] font-semibold mt-1">Ellenőrzés</span>
+        </button>
+
+        <button onclick="navigateTo('favorites')" id="tab-favorites" class="tab-btn flex flex-col items-center justify-center py-1 rounded-xl transition active:scale-95">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+          <span class="text-[10px] font-semibold mt-1">Kedvencek</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Custom iOS Modal Overlay -->
+    <div id="modal-overlay" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+      <div id="modal-card" class="w-full max-w-md bg-oled-card border border-oled-border rounded-3xl p-5 shadow-2xl space-y-4 animate-card">
+        <!-- Injected dynamically -->
+      </div>
     </div>
 
-    <div id="status">SZINKRONIZÁLÁS...</div>
+    <!-- iOS Dynamic Island Style Toast Container -->
+    <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-sm px-4"></div>
+  </div>
 
-    <script>
-        // --- PWA Service Worker (Offline működéshez) ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                const swCode = `
-                    const CACHE_NAME = 'ntp-clock-v1';
-                    self.addEventListener('install', event => {
-                        event.waitUntil(
-                            caches.open(CACHE_NAME).then(cache => {
-                                return cache.addAll([
-                                    location.href.split('#')[0].split('?')[0],
-                                    'https://fonts.googleapis.com/css2?family=B612:ital,wght@0,400;0,700;1,400;1,700&display=swap'
-                                ]);
-                            })
-                        );
-                    });
-                    self.addEventListener('fetch', event => {
-                        event.respondWith(
-                            caches.match(event.request).then(response => {
-                                return response || fetch(event.request);
-                            })
-                        );
-                    });
-                `;
-                const blob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW regisztráció hiba:', err));
-            });
-        }
+  <script>
+    /*************************************************************************
+     * 1. JÁTÉK KONFIGURÁCIÓK ÉS HIVATALOS SZABÁLYOK
+     *************************************************************************/
+    const GAMES = {
+      otos: {
+        id: 'otos',
+        name: 'Ötöslottó',
+        shortName: '5-ös lottó',
+        subtitle: '5 / 90',
+        color: '#10B981',
+        bgSoft: 'rgba(16, 185, 129, 0.14)',
+        borderSoft: 'rgba(16, 185, 129, 0.35)',
+        drawDaysLabel: 'Szombat',
+        drawDays: [6], // Saturday
+        durations: [
+          { value: 1, label: '1 hét (1 húzás)' },
+          { value: 5, label: '5 hetes tartós' }
+        ],
+        maxNum: 90,
+        pickCount: 5,
+        comboMin: 6,
+        comboMax: 12,
+        maxFields: 6,
+        supportsCombo: true,
+        supportsJoker: true,
+        supportsMultiplier: false
+      },
+      hatos: {
+        id: 'hatos',
+        name: 'Hatoslottó',
+        shortName: '6-os lottó',
+        subtitle: '6 / 45',
+        color: '#EF4444',
+        bgSoft: 'rgba(239, 68, 68, 0.14)',
+        borderSoft: 'rgba(239, 68, 68, 0.35)',
+        drawDaysLabel: 'Csütörtök és Vasárnap',
+        drawDays: [4, 0], // Thursday & Sunday
+        durations: [
+          { value: 1, label: '1 húzás' },
+          { value: 2, label: '2 húzás (1 hét)' },
+          { value: 5, label: '5 húzás' },
+          { value: 10, label: '10 húzás (5 hét)' }
+        ],
+        maxNum: 45,
+        pickCount: 6,
+        comboMin: 7,
+        comboMax: 12,
+        maxFields: 6,
+        supportsCombo: true,
+        supportsJoker: true,
+        supportsMultiplier: false
+      },
+      skandi: {
+        id: 'skandi',
+        name: 'Skandináv lottó',
+        shortName: '7-es lottó',
+        subtitle: '7 / 35 (Gépi + Kézi)',
+        color: '#3B82F6',
+        bgSoft: 'rgba(59, 130, 246, 0.14)',
+        borderSoft: 'rgba(59, 130, 246, 0.35)',
+        drawDaysLabel: 'Szerda (Gépi & Kézi)',
+        drawDays: [3], // Wednesday
+        durations: [
+          { value: 1, label: '1 hét (1 húzás)' },
+          { value: 5, label: '5 hetes tartós' }
+        ],
+        maxNum: 35,
+        pickCount: 7,
+        comboMin: 8,
+        comboMax: 12,
+        maxFields: 6,
+        supportsCombo: true,
+        supportsJoker: true,
+        supportsMultiplier: false
+      },
+      euro: {
+        id: 'euro',
+        name: 'Eurojackpot',
+        shortName: 'Eurojackpot',
+        subtitle: '5 / 50 + 2 / 12',
+        color: '#F59E0B',
+        bgSoft: 'rgba(245, 158, 11, 0.14)',
+        borderSoft: 'rgba(245, 158, 11, 0.35)',
+        drawDaysLabel: 'Kedd és Péntek',
+        drawDays: [2, 5], // Tuesday & Friday
+        durations: [
+          { value: 1, label: '1 húzás' },
+          { value: 2, label: '2 húzás (1 hét)' },
+          { value: 5, label: '5 húzás' },
+          { value: 10, label: '10 húzás (5 hét)' }
+        ],
+        maxNumA: 50,
+        pickCountA: 5,
+        maxNumB: 12,
+        pickCountB: 2,
+        comboMaxA: 10,
+        comboMaxB: 6,
+        maxFields: 5,
+        supportsCombo: true,
+        supportsJoker: true,
+        supportsMultiplier: false
+      },
+      putto: {
+        id: 'putto',
+        name: 'Puttó',
+        shortName: 'Puttó',
+        subtitle: '8 / 20 + 1 / 4',
+        color: '#F97316',
+        bgSoft: 'rgba(249, 115, 22, 0.14)',
+        borderSoft: 'rgba(249, 115, 22, 0.35)',
+        drawDaysLabel: '5 percenként',
+        drawDays: '5MIN',
+        durations: [
+          { value: 1, label: '1 húzás' },
+          { value: 2, label: '2 húzás' },
+          { value: 5, label: '5 húzás' },
+          { value: 10, label: '10 húzás' },
+          { value: 20, label: '20 húzás' }
+        ],
+        maxNumA: 20,
+        pickCountA: 8,
+        maxNumB: 4,
+        pickCountB: 1,
+        comboMaxA: 12,
+        comboMaxB: 4,
+        maxFields: 4,
+        supportsCombo: true,
+        supportsJoker: false,
+        supportsMultiplier: true,
+        multipliers: [1, 2, 3, 4, 5]
+      },
+      mazli: {
+        id: 'mazli',
+        name: 'Napi Mázli',
+        shortName: 'Napi Mázli',
+        subtitle: 'Dátum + Szimbólum',
+        color: '#EC4899',
+        bgSoft: 'rgba(236, 72, 153, 0.14)',
+        borderSoft: 'rgba(236, 72, 153, 0.35)',
+        drawDaysLabel: 'Naponta (20:00)',
+        drawDays: 'DAILY',
+        durations: [
+          { value: 1, label: '1 nap (1 húzás)' },
+          { value: 5, label: '5 nap' },
+          { value: 7, label: '7 nap (1 hét)' },
+          { value: 10, label: '10 nap' }
+        ],
+        maxFields: 4,
+        supportsCombo: false,
+        supportsJoker: true,
+        supportsMultiplier: true,
+        multipliers: [1, 2, 3, 5]
+      },
+      keno: {
+        id: 'keno',
+        name: 'Kenó',
+        shortName: 'Kenó',
+        subtitle: '1–10-es típus / 80',
+        color: '#8B5CF6',
+        bgSoft: 'rgba(139, 92, 246, 0.14)',
+        borderSoft: 'rgba(139, 92, 246, 0.35)',
+        drawDaysLabel: 'Naponta (20:00)',
+        drawDays: 'DAILY',
+        durations: [
+          { value: 1, label: '1 nap' },
+          { value: 5, label: '5 nap' },
+          { value: 7, label: '7 nap' },
+          { value: 10, label: '10 nap' }
+        ],
+        maxNum: 80,
+        maxFields: 4,
+        supportsCombo: false,
+        supportsJoker: false,
+        supportsMultiplier: true,
+        multipliers: [1, 2, 3, 4, 5]
+      },
+      joker: {
+        id: 'joker',
+        name: 'Joker',
+        shortName: 'Joker',
+        subtitle: '6 jegyű számsor',
+        color: '#06B6D4',
+        bgSoft: 'rgba(6, 182, 212, 0.14)',
+        borderSoft: 'rgba(6, 182, 212, 0.35)',
+        drawDaysLabel: 'Szombat',
+        drawDays: [6],
+        durations: [
+          { value: 1, label: '1 hét (1 húzás)' },
+          { value: 5, label: '5 hetes tartós' }
+        ],
+        supportsCombo: false,
+        supportsJoker: false,
+        supportsMultiplier: false
+      }
+    };
 
-        // Vásárosdombó koordinátái
-        const LAT = 46.2482;
-        const LNG = 18.1281;
+    const MAZLI_SYMBOLS = [
+      { id: 'lohere', name: 'Lóhere', icon: '🍀' },
+      { id: 'patko', name: 'Patkó', icon: '🧲' },
+      { id: 'katica', name: 'Katica', icon: '🐞' },
+      { id: 'aranyhal', name: 'Aranyhal', icon: '🐠' },
+      { id: 'csillag', name: 'Csillag', icon: '⭐' },
+      { id: 'korona', name: 'Korona', icon: '👑' },
+      { id: 'gyemant', name: 'Gyémánt', icon: '💎' },
+      { id: 'harang', name: 'Harang', icon: '🔔' },
+      { id: 'kulcs', name: 'Kulcs', icon: '🔑' },
+      { id: 'sziv', name: 'Szív', icon: '❤️' }
+    ];
 
-        let timeOffset = 0;
-        let sunData = {
-            sunrise: null,
-            sunset: null
+    const HU_MONTHS_SHORT = ['jan.', 'febr.', 'márc.', 'ápr.', 'máj.', 'jún.', 'júl.', 'aug.', 'szept.', 'okt.', 'nov.', 'dec.'];
+    const HU_MONTHS_FULL = ['Január', 'Február', 'Március', 'Április', 'Május', 'Június', 'Július', 'Augusztus', 'Szeptember', 'Október', 'November', 'December'];
+    const HU_DAYS_SHORT = ['Vas', 'Hét', 'Kedd', 'Sze', 'Csüt', 'Pén', 'Szo'];
+
+    /*************************************************************************
+     * 2. ÁLLAPOTKEZELÉS (STATE) ÉS LOCALSTORAGE
+     *************************************************************************/
+    const STORAGE_KEY = 'lottomester_ios_v1';
+
+    let state = {
+      activeTab: 'tickets', // 'tickets' | 'new' | 'check' | 'favorites'
+      ticketFilterStatus: 'active', // 'active' | 'expired' | 'all'
+      ticketFilterGame: 'all',
+      expandedTickets: {}, // { [ticketId]: boolean }
+      tickets: [],
+      winningDraws: {}, // { [gameId]: { ... } }
+      favorites: [],
+      checkGame: 'otos',
+      builder: null // Initialized dynamically
+    };
+
+    function saveState() {
+      try {
+        const toPersist = {
+          tickets: state.tickets,
+          winningDraws: state.winningDraws,
+          favorites: state.favorites,
+          checkGame: state.checkGame
         };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toPersist));
+      } catch (e) {
+        console.error('Mentési hiba:', e);
+      }
+      updateBadges();
+    }
 
-        // Stopper változók
-        let swRunning = false;
-        let swStartSec = 0;
-        let swElapsedSec = 0;
-
-        function formatDuration(ms) {
-            if (isNaN(ms) || ms < 0) return "00:00:00";
-            const totalSeconds = Math.floor(ms / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
-            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          state.tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
+          state.winningDraws = parsed.winningDraws || {};
+          state.favorites = Array.isArray(parsed.favorites) ? parsed.favorites : [];
+          state.checkGame = parsed.checkGame && GAMES[parsed.checkGame] ? parsed.checkGame : 'otos';
+          return;
         }
+      } catch (e) {
+        console.error('Betöltési hiba:', e);
+      }
+      // First visit: populate illustrative sample tickets & favorites
+      seedInitialSampleData();
+    }
 
-        async function syncAllData() {
-            const statusEl = document.getElementById('status');
-            statusEl.style.opacity = '1';
+    /*************************************************************************
+     * 3. DÁTUM ÉS SORSOLÁS KALKULÁTOR (TARTÓS & TÖBBHÚZÁSOS KÖVETÉS)
+     *************************************************************************/
+    function formatHuDate(dateObj, includeTime = false) {
+      const y = dateObj.getFullYear();
+      const m = HU_MONTHS_SHORT[dateObj.getMonth()];
+      const d = dateObj.getDate();
+      const dayName = HU_DAYS_SHORT[dateObj.getDay()];
+      if (includeTime) {
+        const hh = String(dateObj.getHours()).padStart(2, '0');
+        const mm = String(dateObj.getMinutes()).padStart(2, '0');
+        return `${y}. ${m} ${d}. ${hh}:${mm} (${dayName})`;
+      }
+      return `${y}. ${m} ${d}. (${dayName})`;
+    }
 
-            try {
-                // 1. NTP-alapú idő lekérése
-                const timeResponse = await fetch('https://ipwho.is/');
-                const timeData = await timeResponse.json();
-                
-                if (timeData.success) {
-                    const networkTime = new Date(timeData.timezone.current_time).getTime();
-                    timeOffset = networkTime - Date.now();
-                }
+    function generateDrawSchedule(gameId, count, startDateStr = null) {
+      const game = GAMES[gameId];
+      const draws = [];
+      let cursor = startDateStr ? new Date(startDateStr) : new Date();
+      if (isNaN(cursor.getTime())) cursor = new Date();
 
-                // 2. Napkelte/Napnyugta adatok Vásárosdombóra
-                const sunResponse = await fetch(`https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&formatted=0`);
-                const sunJson = await sunResponse.json();
-                
-                if (sunJson.status === "OK") {
-                    sunData.sunrise = new Date(sunJson.results.sunrise);
-                    sunData.sunset = new Date(sunJson.results.sunset);
-                    
-                    document.getElementById('sunrise-time').innerText = 
-                        sunData.sunrise.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
-                    document.getElementById('sunset-time').innerText = 
-                        sunData.sunset.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
-                }
-                
-                statusEl.innerText = "SZINKRONIZÁLVA (VÁSÁROSDOMBÓ)";
-                setTimeout(() => { statusEl.style.opacity = '0'; }, 3000);
-            } catch (error) {
-                console.error("Szinkron hiba:", error);
-                statusEl.innerText = "OFFLINE MÓD";
-            }
+      if (game.drawDays === '5MIN') {
+        // Round up to next 5-minute mark
+        const ms = 1000 * 60 * 5;
+        cursor = new Date(Math.ceil(cursor.getTime() / ms) * ms);
+        for (let i = 0; i < count; i++) {
+          const d = new Date(cursor.getTime() + i * ms);
+          draws.push({
+            index: i + 1,
+            dateISO: d.toISOString(),
+            label: formatHuDate(d, true),
+            completed: false
+          });
         }
+        return draws;
+      }
 
-        function updateClock() {
-            const now = new Date(Date.now() + timeOffset);
-            
-            // Fő óra frissítése
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const dayNum = String(now.getDate()).padStart(2, '0');
-            document.getElementById('date').innerText = `${year}. ${month}. ${dayNum}.`;
-
-            const days = ['VASÁRNAP', 'HÉTFŐ', 'KEDD', 'SZERDA', 'CSÜTÖRTÖK', 'PÉNTEK', 'SZOMBAT'];
-            document.getElementById('day').innerText = days[now.getDay()];
-
-            const h = String(now.getHours()).padStart(2, '0');
-            const m = String(now.getMinutes()).padStart(2, '0');
-            const s = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('time').innerText = `${h}:${m}:${s}`;
-
-            // UTC óra frissítése
-            const utc_h = String(now.getUTCHours()).padStart(2, '0');
-            const utc_m = String(now.getUTCMinutes()).padStart(2, '0');
-            const utc_s = String(now.getUTCSeconds()).padStart(2, '0');
-            document.getElementById('utc-time').innerText = `${utc_h}:${utc_m}:${utc_s} UTC`;
-
-            // Nap adatok
-            if (sunData.sunrise) {
-                const elapsed = now - sunData.sunrise;
-                document.getElementById('sunrise-elapsed').innerText = (elapsed > 0) ? "Eltelt: " + formatDuration(elapsed) : "Még nem kelt fel";
-            }
-
-            if (sunData.sunset) {
-                const remaining = sunData.sunset - now;
-                document.getElementById('sunset-remaining').innerText = (remaining > 0) ? "Hátralévő: " + formatDuration(remaining) : "Lement a nap";
-            }
-
-            // Stopper frissítése, hogy tizedmásodpercre egyszerre kattanjon a főórával
-            if (swRunning || document.getElementById('stopwatch').style.display === 'block') {
-                let currentElapsedSec = swElapsedSec;
-                if (swRunning) {
-                    currentElapsedSec += Math.floor(now.getTime() / 1000) - swStartSec;
-                }
-                document.getElementById('stopwatch').innerText = formatDuration(currentElapsedSec * 1000);
-            }
+      if (game.drawDays === 'DAILY') {
+        cursor.setHours(20, 0, 0, 0);
+        // If starting today and already past 20:00 and no custom past date was chosen, start tomorrow
+        if (!startDateStr && new Date().getHours() >= 20) {
+          cursor.setDate(cursor.getDate() + 1);
         }
+        for (let i = 0; i < count; i++) {
+          const d = new Date(cursor);
+          d.setDate(cursor.getDate() + i);
+          draws.push({
+            index: i + 1,
+            dateISO: d.toISOString(),
+            label: formatHuDate(d, false),
+            completed: false
+          });
+        }
+        return draws;
+      }
 
-        // --- Stopper eseménykezelők ---
+      // Specific weekdays (e.g., [6] for Saturday, [4, 0] for Thu & Sun, [2, 5] for Tue & Fri)
+      const allowedDays = game.drawDays;
+      cursor.setHours(19, 0, 0, 0);
+      if (!startDateStr) {
+        // Move to today or future valid draw day
+        const now = new Date();
+        if (now.getHours() >= 19) {
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      }
 
-        // Fő órára koppintás: Stopper indítása / újraindítása
-        document.getElementById('time').addEventListener('click', (e) => {
-            e.stopPropagation(); // Ne váltson teljes képernyőre
-            const now = new Date(Date.now() + timeOffset);
-            swElapsedSec = 0;
-            // A másodperc egész részét mentjük el a tökéletes szinkronhoz
-            swStartSec = Math.floor(now.getTime() / 1000);
-            swRunning = true;
-            
-            const swEl = document.getElementById('stopwatch');
-            swEl.style.display = 'block';
-            swEl.innerText = "00:00:00";
+      let safety = 0;
+      while (draws.length < count && safety < 500) {
+        if (allowedDays.includes(cursor.getDay())) {
+          draws.push({
+            index: draws.length + 1,
+            dateISO: new Date(cursor).toISOString(),
+            label: formatHuDate(cursor, false),
+            completed: false
+          });
+        }
+        cursor.setDate(cursor.getDate() + 1);
+        safety++;
+      }
+      return draws;
+    }
+
+    function getTicketDrawStats(ticket) {
+      const total = ticket.draws.length;
+      const completedCount = ticket.draws.filter(d => d.completed).length;
+      const remaining = Math.max(0, total - completedCount);
+      const isExpired = remaining === 0;
+      const isLastDraw = remaining === 1;
+      const lastDraw = ticket.draws[total - 1];
+      const nextDraw = ticket.draws.find(d => !d.completed) || lastDraw;
+      const progressPct = total > 0 ? Math.round((completedCount / total) * 100) : 100;
+
+      return {
+        total,
+        completedCount,
+        remaining,
+        isExpired,
+        isLastDraw,
+        expiryLabel: lastDraw ? lastDraw.label : 'Ismeretlen',
+        nextDrawLabel: nextDraw ? nextDraw.label : '',
+        progressPct
+      };
+    }
+
+    /*************************************************************************
+     * 4. KOMBINATORIKA ÉS TALÁLATKIÉRTÉKELŐ MOTOR
+     *************************************************************************/
+    function nCr(n, r) {
+      if (r < 0 || r > n) return 0;
+      if (r === 0 || r === n) return 1;
+      if (r > n / 2) r = n - r;
+      let res = 1;
+      for (let i = 1; i <= r; i++) {
+        res = (res * (n - i + 1)) / i;
+      }
+      return Math.round(res);
+    }
+
+    function calculateTicketCombinations(ticket) {
+      const g = ticket.gameId;
+      if (ticket.mode !== 'combo') {
+        return ticket.fields.length;
+      }
+      const f = ticket.fields[0];
+      if (!f) return 1;
+      if (g === 'otos') return nCr(f.numbers.length, 5);
+      if (g === 'hatos') return nCr(f.numbers.length, 6);
+      if (g === 'skandi') return nCr(f.numbers.length, 7);
+      if (g === 'euro') return nCr(f.numbersA.length, 5) * nCr(f.numbersB.length, 2);
+      if (g === 'putto') return nCr(f.numbersA.length, 8) * nCr(f.numbersB.length, 1);
+      return 1;
+    }
+
+    // Evaluate Joker right-to-left consecutive matching digits
+    function evaluateJokerMatch(playedJoker, winningJoker) {
+      if (!playedJoker || !winningJoker || playedJoker.length !== 6 || winningJoker.length !== 6) {
+        return { matchedDigits: 0, matchedMask: [false, false, false, false, false, false] };
+      }
+      let count = 0;
+      const mask = [false, false, false, false, false, false];
+      for (let i = 5; i >= 0; i--) {
+        if (playedJoker[i] === winningJoker[i]) {
+          count++;
+          mask[i] = true;
+        } else {
+          break; // Official Joker rule: consecutive from right to left
+        }
+      }
+      return { matchedDigits: count, matchedMask: mask };
+    }
+
+    // Evaluate a single ticket against saved winning numbers for its game
+    function evaluateTicketHits(ticket) {
+      const win = state.winningDraws[ticket.gameId];
+      if (!win) return null;
+
+      const gameId = ticket.gameId;
+      let totalMatchedNumbers = 0;
+      let fieldResults = [];
+      let bestSummary = '';
+
+      if (gameId === 'otos' || gameId === 'hatos') {
+        const winSet = new Set(win.numbers || []);
+        if (winSet.size === 0) return null;
+        const pickReq = GAMES[gameId].pickCount;
+
+        ticket.fields.forEach((f, idx) => {
+          const hits = f.numbers.filter(n => winSet.has(n));
+          totalMatchedNumbers += hits.length;
+
+          if (ticket.mode === 'combo') {
+            // Exact combinatorics breakdown: C(hits, k) * C(nonHits, pickReq - k)
+            const n = f.numbers.length;
+            const h = hits.length;
+            const nonH = n - h;
+            const tiers = [];
+            for (let k = pickReq; k >= 2; k--) {
+              const ways = nCr(h, k) * nCr(nonH, pickReq - k);
+              if (ways > 0) tiers.push(`${ways}×${k}-es`);
+            }
+            fieldResults.push({
+              fieldIndex: idx,
+              hits,
+              hitCount: hits.length,
+              label: tiers.length > 0 ? `Kombinációs: ${tiers.join(', ')} találat!` : `${hits.length} eltalált szám`
+            });
+          } else {
+            fieldResults.push({
+              fieldIndex: idx,
+              hits,
+              hitCount: hits.length,
+              label: hits.length > 0 ? `${hits.length} találat!` : '0 találat'
+            });
+          }
         });
 
-        // Stopperre koppintás: Megállítás vagy Nullázás
-        document.getElementById('stopwatch').addEventListener('click', (e) => {
-            e.stopPropagation(); // Ne váltson teljes képernyőre
-            if (swRunning) {
-                // Megállítás (Szünet)
-                const now = new Date(Date.now() + timeOffset);
-                swElapsedSec += Math.floor(now.getTime() / 1000) - swStartSec;
-                swRunning = false;
-            } else {
-                // Nullázás és elrejtés
-                swElapsedSec = 0;
-                swRunning = false;
-                document.getElementById('stopwatch').style.display = 'none';
+        const maxHit = Math.max(...fieldResults.map(r => r.hitCount), 0);
+        bestSummary = ticket.mode === 'combo'
+          ? fieldResults[0].label
+          : (maxHit > 0 ? `Legjobb mező: ${maxHit} találat!` : 'Nincs találat ezen a húzáson');
+      }
+
+      else if (gameId === 'skandi') {
+        const winGepi = new Set(win.gepi || []);
+        const winKez = new Set(win.kezi || []);
+        if (winGepi.size === 0 && winKez.size === 0) return null;
+
+        ticket.fields.forEach((f, idx) => {
+          const hitsG = f.numbers.filter(n => winGepi.has(n));
+          const hitsK = f.numbers.filter(n => winKez.has(n));
+          const unionHits = Array.from(new Set([...hitsG, ...hitsK]));
+          totalMatchedNumbers += unionHits.length;
+
+          const parts = [];
+          if (winGepi.size > 0) parts.push(`Gépi: ${hitsG.length} találat`);
+          if (winKez.size > 0) parts.push(`Kézi: ${hitsK.length} találat`);
+
+          fieldResults.push({
+            fieldIndex: idx,
+            hits: unionHits,
+            hitsGepi: hitsG,
+            hitsKezi: hitsK,
+            hitCount: Math.max(hitsG.length, hitsK.length),
+            label: parts.join(' • ')
+          });
+        });
+
+        const maxHit = Math.max(...fieldResults.map(r => r.hitCount), 0);
+        bestSummary = maxHit > 0 ? `Legjobb húzás: ${maxHit} találat!` : '0 találat';
+      }
+
+      else if (gameId === 'euro') {
+        const winA = new Set(win.numbersA || []);
+        const winB = new Set(win.numbersB || []);
+        if (winA.size === 0 && winB.size === 0) return null;
+
+        ticket.fields.forEach((f, idx) => {
+          const hitsA = f.numbersA.filter(n => winA.has(n));
+          const hitsB = f.numbersB.filter(n => winB.has(n));
+          totalMatchedNumbers += hitsA.length + hitsB.length;
+
+          if (ticket.mode === 'combo') {
+            const nA = f.numbersA.length, hA = hitsA.length, nonA = nA - hA;
+            const nB = f.numbersB.length, hB = hitsB.length, nonB = nB - hB;
+            const tiers = [];
+            for (let a = 5; a >= 1; a--) {
+              for (let b = 2; b >= 0; b--) {
+                if (a + b >= 3 || (a === 2 && b === 1) || (a === 1 && b === 2)) {
+                  const ways = nCr(hA, a) * nCr(nonA, 5 - a) * nCr(hB, b) * nCr(nonB, 2 - b);
+                  if (ways > 0) tiers.push(`${ways}×(${a}+${b})`);
+                }
+              }
             }
+            fieldResults.push({
+              fieldIndex: idx,
+              hitsA,
+              hitsB,
+              hitCount: hitsA.length + hitsB.length,
+              label: tiers.length > 0 ? `Kombinációs: ${tiers.slice(0, 3).join(', ')}` : `${hitsA.length}+${hitsB.length} találat`
+            });
+          } else {
+            fieldResults.push({
+              fieldIndex: idx,
+              hitsA,
+              hitsB,
+              hitCount: hitsA.length + hitsB.length,
+              label: `${hitsA.length}+${hitsB.length} találat!`
+            });
+          }
         });
 
+        const bestField = fieldResults.reduce((best, cur) => cur.hitCount > best.hitCount ? cur : best, fieldResults[0]);
+        bestSummary = bestField ? bestField.label : '0+0 találat';
+      }
 
-        setInterval(updateClock, 100);
-        syncAllData();
-        setInterval(syncAllData, 1800000);
+      else if (gameId === 'putto') {
+        const winA = new Set(win.numbersA || []);
+        const winB = win.numberB ? Number(win.numberB) : null;
+        if (winA.size === 0 && !winB) return null;
 
-        // Teljes képernyő csak ha nem az órára vagy stopperre nyomtunk
-        document.body.addEventListener('click', () => {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e => {});
+        ticket.fields.forEach((f, idx) => {
+          const hitsA = f.numbersA.filter(n => winA.has(n));
+          const hitsB = f.numbersB.filter(n => n === winB);
+          totalMatchedNumbers += hitsA.length + hitsB.length;
+          fieldResults.push({
+            fieldIndex: idx,
+            hitsA,
+            hitsB,
+            hitCount: hitsA.length + hitsB.length,
+            label: `${hitsA.length}+${hitsB.length} találat (${ticket.multiplier || 1}× tét)`
+          });
         });
-    </script>
+
+        const bestField = fieldResults.reduce((best, cur) => cur.hitCount > best.hitCount ? cur : best, fieldResults[0]);
+        bestSummary = bestField ? bestField.label : '0+0 találat';
+      }
+
+      else if (gameId === 'keno') {
+        const winSet = new Set(win.numbers || []);
+        if (winSet.size === 0) return null;
+
+        ticket.fields.forEach((f, idx) => {
+          const hits = f.numbers.filter(n => winSet.has(n));
+          totalMatchedNumbers += hits.length;
+          fieldResults.push({
+            fieldIndex: idx,
+            hits,
+            hitCount: hits.length,
+            label: `${ticket.kenoType}-es játék: ${hits.length} találat!`
+          });
+        });
+
+        const maxHit = Math.max(...fieldResults.map(r => r.hitCount), 0);
+        bestSummary = `${ticket.kenoType}-es Kenó: ${maxHit} találat!`;
+      }
+
+      else if (gameId === 'mazli') {
+        if (!win.year && !win.month && !win.day && !win.symbol) return null;
+
+        ticket.fields.forEach((f, idx) => {
+          const yearHit = Number(f.year) === Number(win.year);
+          const monthHit = Number(f.month) === Number(win.month);
+          const dayHit = Number(f.day) === Number(win.day);
+          const symbolHit = f.symbol === win.symbol;
+          const parts = [];
+          if (yearHit) parts.push('Év');
+          if (monthHit) parts.push('Hónap');
+          if (dayHit) parts.push('Nap');
+          if (symbolHit) parts.push('Szimbólum');
+          totalMatchedNumbers += parts.length;
+
+          fieldResults.push({
+            fieldIndex: idx,
+            yearHit,
+            monthHit,
+            dayHit,
+            symbolHit,
+            hitCount: parts.length,
+            label: parts.length > 0 ? `Eltalálva: ${parts.join(' + ')} (${parts.length}/4)` : 'Nincs egyezés'
+          });
+        });
+
+        const bestField = fieldResults.reduce((best, cur) => cur.hitCount > best.hitCount ? cur : best, fieldResults[0]);
+        bestSummary = bestField ? bestField.label : 'Nincs egyezés';
+      }
+
+      else if (gameId === 'joker') {
+        const winJoker = win.joker;
+        if (!winJoker || winJoker.length !== 6) return null;
+        const jEval = evaluateJokerMatch(ticket.jokerNumber, winJoker);
+        totalMatchedNumbers = jEval.matchedDigits;
+        fieldResults.push({
+          fieldIndex: 0,
+          jokerEval: jEval,
+          hitCount: jEval.matchedDigits,
+          label: jEval.matchedDigits >= 2
+            ? `Joker: ${jEval.matchedDigits} helyes számjegy hátulról!`
+            : `Joker: ${jEval.matchedDigits} egyező számjegy`
+        });
+        bestSummary = fieldResults[0].label;
+      }
+
+      // Check optional attached Joker on main games
+      let attachedJokerEval = null;
+      if (ticket.hasJoker && ticket.jokerNumber) {
+        const jokerSource = (state.winningDraws.joker && state.winningDraws.joker.joker)
+          || (win && win.joker);
+        if (jokerSource && jokerSource.length === 6) {
+          attachedJokerEval = evaluateJokerMatch(ticket.jokerNumber, jokerSource);
+        }
+      }
+
+      return {
+        totalMatchedNumbers,
+        fieldResults,
+        bestSummary,
+        attachedJokerEval
+      };
+    }
+
+    /*************************************************************************
+     * 5. INDULÓ MINTAADATOK (ELSŐ MEGNYITÁSKOR)
+     *************************************************************************/
+    function seedInitialSampleData() {
+      const now = new Date();
+
+      // 1. Ötöslottó — 5 hetes tartós szelvény (1 húzás már lezajlott, 4 hátra!)
+      const otosStart = new Date(now);
+      otosStart.setDate(otosStart.getDate() - 6);
+      const otosDraws = generateDrawSchedule('otos', 5, otosStart.toISOString());
+      if (otosDraws.length > 0) otosDraws[0].completed = true;
+
+      // 2. Hatoslottó — 10 húzásos szelvény + Joker (1 húzás lezajlott, 9 hátra!)
+      const hatosStart = new Date(now);
+      hatosStart.setDate(hatosStart.getDate() - 3);
+      const hatosDraws = generateDrawSchedule('hatos', 10, hatosStart.toISOString());
+      if (hatosDraws.length > 0) hatosDraws[0].completed = true;
+
+      // 3. Eurojackpot — Kombinációs (6+2) + Joker (5 húzásos)
+      const euroDraws = generateDrawSchedule('euro', 5);
+
+      state.tickets = [
+        {
+          id: 'sample_otos_1',
+          isSample: true,
+          gameId: 'otos',
+          mode: 'normal',
+          duration: 5,
+          createdAt: new Date(now.getTime() - 86400000 * 6).toISOString(),
+          draws: otosDraws,
+          fields: [
+            { numbers: [7, 19, 34, 62, 85] },
+            { numbers: [3, 14, 28, 51, 77] }
+          ],
+          hasJoker: false,
+          jokerNumber: ''
+        },
+        {
+          id: 'sample_hatos_2',
+          isSample: true,
+          gameId: 'hatos',
+          mode: 'normal',
+          duration: 10,
+          createdAt: new Date(now.getTime() - 86400000 * 3).toISOString(),
+          draws: hatosDraws,
+          fields: [
+            { numbers: [4, 11, 22, 29, 38, 44] },
+            { numbers: [2, 9, 17, 25, 33, 41] }
+          ],
+          hasJoker: true,
+          jokerNumber: '482915'
+        },
+        {
+          id: 'sample_euro_3',
+          isSample: true,
+          gameId: 'euro',
+          mode: 'combo',
+          duration: 5,
+          createdAt: now.toISOString(),
+          draws: euroDraws,
+          fields: [
+            { numbersA: [5, 12, 23, 34, 41, 48], numbersB: [3, 9] }
+          ],
+          hasJoker: true,
+          jokerNumber: '739104'
+        }
+      ];
+
+      state.favorites = [
+        {
+          id: 'fav_1',
+          name: 'Családi szerencseszámok',
+          gameId: 'otos',
+          numbers: [7, 19, 34, 62, 85]
+        },
+        {
+          id: 'fav_2',
+          name: 'Állandó Hatoslottó sor',
+          gameId: 'hatos',
+          numbers: [4, 11, 22, 29, 38, 44]
+        }
+      ];
+
+      saveState();
+    }
+
+    /*************************************************************************
+     * 6. SZEKCIÓ: ÚJ SZELVÉNY BUILDER ÁLLAPOT ÉS MŰVELETEK
+     *************************************************************************/
+    function initBuilder(gameId = 'otos', prefill = null) {
+      const game = GAMES[gameId];
+      const defaultDuration = game.durations.find(d => d.value === 5)?.value || game.durations[0].value;
+
+      const builder = {
+        gameId,
+        mode: prefill?.mode || 'normal', // 'normal' | 'combo'
+        duration: prefill?.duration || defaultDuration,
+        multiplier: prefill?.multiplier || 1,
+        kenoType: prefill?.kenoType || 6,
+        hasJoker: prefill?.hasJoker || false,
+        jokerNumber: prefill?.jokerNumber || generateRandomJoker(),
+        customStartDate: '',
+        activeFieldIdx: 0,
+        fields: []
+      };
+
+      if (prefill?.fields && prefill.fields.length > 0) {
+        builder.fields = JSON.parse(JSON.stringify(prefill.fields));
+      } else {
+        builder.fields = [createEmptyField(gameId, builder.kenoType)];
+      }
+
+      state.builder = builder;
+    }
+
+    function createEmptyField(gameId, kenoType = 6) {
+      if (gameId === 'euro' || gameId === 'putto') {
+        return { numbersA: [], numbersB: [] };
+      }
+      if (gameId === 'mazli') {
+        return { year: 1990, month: 5, day: 15, symbol: 'lohere' };
+      }
+      if (gameId === 'joker') {
+        return { joker: generateRandomJoker() };
+      }
+      return { numbers: [] };
+    }
+
+    function generateRandomUnique(min, max, count) {
+      const pool = [];
+      for (let i = min; i <= max; i++) pool.push(i);
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      return pool.slice(0, count).sort((a, b) => a - b);
+    }
+
+    function generateRandomJoker() {
+      return String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+    }
+
+    function quickPickCurrentField() {
+      const b = state.builder;
+      const g = GAMES[b.gameId];
+      const f = b.fields[b.activeFieldIdx];
+
+      if (b.gameId === 'otos' || b.gameId === 'hatos' || b.gameId === 'skandi') {
+        const count = b.mode === 'combo' ? Math.max(g.comboMin, f.numbers.length || g.comboMin) : g.pickCount;
+        f.numbers = generateRandomUnique(1, g.maxNum, count);
+      } else if (b.gameId === 'euro' || b.gameId === 'putto') {
+        const countA = b.mode === 'combo' ? Math.max(g.pickCountA + 1, f.numbersA.length || g.pickCountA + 1) : g.pickCountA;
+        const countB = b.mode === 'combo' ? Math.max(g.pickCountB, f.numbersB.length || g.pickCountB) : g.pickCountB;
+        f.numbersA = generateRandomUnique(1, g.maxNumA, countA);
+        f.numbersB = generateRandomUnique(1, g.maxNumB, countB);
+      } else if (b.gameId === 'keno') {
+        f.numbers = generateRandomUnique(1, 80, b.kenoType);
+      } else if (b.gameId === 'mazli') {
+        const year = Math.floor(Math.random() * (2025 - 1940 + 1)) + 1940;
+        const month = Math.floor(Math.random() * 12) + 1;
+        const maxDay = new Date(year, month, 0).getDate();
+        const day = Math.floor(Math.random() * maxDay) + 1;
+        const sym = MAZLI_SYMBOLS[Math.floor(Math.random() * MAZLI_SYMBOLS.length)].id;
+        b.fields[b.activeFieldIdx] = { year, month, day, symbol: sym };
+      } else if (b.gameId === 'joker') {
+        b.jokerNumber = generateRandomJoker();
+      }
+
+      showToast('Gyors tipp generálva! 🎲');
+      render();
+    }
+
+    function toggleBuilderNumber(num, subField = 'main') {
+      const b = state.builder;
+      const g = GAMES[b.gameId];
+      const f = b.fields[b.activeFieldIdx];
+
+      if (subField === 'main') {
+        const maxAllowed = b.gameId === 'keno'
+          ? b.kenoType
+          : (b.mode === 'combo' ? g.comboMax : g.pickCount);
+
+        const idx = f.numbers.indexOf(num);
+        if (idx >= 0) {
+          f.numbers.splice(idx, 1);
+        } else {
+          if (f.numbers.length >= maxAllowed) {
+            showToast(`Maximum ${maxAllowed} szám választható ebben a módban!`, 'warning');
+            return;
+          }
+          f.numbers.push(num);
+          f.numbers.sort((a, c) => a - c);
+        }
+      } else if (subField === 'A') {
+        const maxAllowed = b.mode === 'combo' ? g.comboMaxA : g.pickCountA;
+        const idx = f.numbersA.indexOf(num);
+        if (idx >= 0) {
+          f.numbersA.splice(idx, 1);
+        } else {
+          if (f.numbersA.length >= maxAllowed) {
+            showToast(`Az "A" mezőben max. ${maxAllowed} szám jelölhető!`, 'warning');
+            return;
+          }
+          f.numbersA.push(num);
+          f.numbersA.sort((a, c) => a - c);
+        }
+      } else if (subField === 'B') {
+        const maxAllowed = b.mode === 'combo' ? g.comboMaxB : g.pickCountB;
+        const idx = f.numbersB.indexOf(num);
+        if (idx >= 0) {
+          f.numbersB.splice(idx, 1);
+        } else {
+          if (f.numbersB.length >= maxAllowed) {
+            showToast(`A "B" mezőben max. ${maxAllowed} szám jelölhető!`, 'warning');
+            return;
+          }
+          f.numbersB.push(num);
+          f.numbersB.sort((a, c) => a - c);
+        }
+      }
+
+      render();
+    }
+
+    function stepJokerDigit(pos, delta) {
+      const b = state.builder;
+      const digits = b.jokerNumber.split('').map(Number);
+      digits[pos] = (digits[pos] + delta + 10) % 10;
+      b.jokerNumber = digits.join('');
+      render();
+    }
+
+    function validateAndSaveTicket() {
+      const b = state.builder;
+      const g = GAMES[b.gameId];
+
+      // Validate every field
+      for (let i = 0; i < b.fields.length; i++) {
+        const f = b.fields[i];
+        const fieldLabel = `${i + 1}. mező`;
+
+        if (b.gameId === 'otos' || b.gameId === 'hatos' || b.gameId === 'skandi') {
+          if (b.mode === 'normal' && f.numbers.length !== g.pickCount) {
+            showToast(`A(z) ${fieldLabel}ben pontosan ${g.pickCount} számot válassz! (Most: ${f.numbers.length})`, 'warning');
+            return;
+          }
+          if (b.mode === 'combo' && (f.numbers.length < g.comboMin || f.numbers.length > g.comboMax)) {
+            showToast(`Kombinációs módban ${g.comboMin}–${g.comboMax} szám szükséges!`, 'warning');
+            return;
+          }
+        } else if (b.gameId === 'euro' || b.gameId === 'putto') {
+          if (b.mode === 'normal') {
+            if (f.numbersA.length !== g.pickCountA || f.numbersB.length !== g.pickCountB) {
+              showToast(`A(z) ${fieldLabel}ben ${g.pickCountA} "A" és ${g.pickCountB} "B" számot válassz!`, 'warning');
+              return;
+            }
+          } else {
+            const validCombo = f.numbersA.length >= g.pickCountA &&
+              f.numbersB.length >= g.pickCountB &&
+              (f.numbersA.length > g.pickCountA || f.numbersB.length > g.pickCountB);
+            if (!validCombo) {
+              showToast(`Kombinációs játékhoz jelölj meg több számot az A vagy B mezőben!`, 'warning');
+              return;
+            }
+          }
+        } else if (b.gameId === 'keno') {
+          if (f.numbers.length !== b.kenoType) {
+            showToast(`A(z) ${fieldLabel}ben pontosan ${b.kenoType} számot válassz!`, 'warning');
+            return;
+          }
+        }
+      }
+
+      const draws = generateDrawSchedule(b.gameId, b.duration, b.customStartDate || null);
+
+      const newTicket = {
+        id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        isSample: false,
+        gameId: b.gameId,
+        mode: b.mode,
+        duration: b.duration,
+        multiplier: g.supportsMultiplier ? b.multiplier : 1,
+        kenoType: b.gameId === 'keno' ? b.kenoType : null,
+        createdAt: new Date().toISOString(),
+        draws,
+        fields: JSON.parse(JSON.stringify(b.fields)),
+        hasJoker: g.supportsJoker ? b.hasJoker : false,
+        jokerNumber: (g.supportsJoker && b.hasJoker) || b.gameId === 'joker' ? b.jokerNumber : ''
+      };
+
+      state.tickets.unshift(newTicket);
+      state.expandedTickets[newTicket.id] = true;
+      state.activeTab = 'tickets';
+      state.ticketFilterStatus = 'active';
+      saveState();
+      showToast(`${g.name} szelvény elmentve! (${b.duration} húzás)`, 'success');
+      render();
+    }
+
+    function saveFieldAsFavorite() {
+      const b = state.builder;
+      const g = GAMES[b.gameId];
+      const f = b.fields[b.activeFieldIdx];
+
+      if (b.gameId === 'otos' || b.gameId === 'hatos' || b.gameId === 'skandi' || b.gameId === 'keno') {
+        if (f.numbers.length === 0) {
+          showToast('Előbb válassz ki számokat a mentéshez!', 'warning');
+          return;
+        }
+        state.favorites.unshift({
+          id: 'fav_' + Date.now(),
+          name: `Kedvenc ${g.shortName} (${f.numbers.length} szám)`,
+          gameId: b.gameId,
+          numbers: [...f.numbers]
+        });
+      } else if (b.gameId === 'euro' || b.gameId === 'putto') {
+        if (f.numbersA.length === 0) {
+          showToast('Előbb válassz ki számokat a mentéshez!', 'warning');
+          return;
+        }
+        state.favorites.unshift({
+          id: 'fav_' + Date.now(),
+          name: `Kedvenc ${g.shortName}`,
+          gameId: b.gameId,
+          numbersA: [...f.numbersA],
+          numbersB: [...f.numbersB]
+        });
+      } else if (b.gameId === 'mazli') {
+        state.favorites.unshift({
+          id: 'fav_' + Date.now(),
+          name: `Kedvenc Napi Mázli (${f.year}.${String(f.month).padStart(2,'0')}.${String(f.day).padStart(2,'0')})`,
+          gameId: 'mazli',
+          mazliData: { ...f }
+        });
+      } else if (b.gameId === 'joker') {
+        state.favorites.unshift({
+          id: 'fav_' + Date.now(),
+          name: `Kedvenc Joker (${b.jokerNumber})`,
+          gameId: 'joker',
+          jokerNumber: b.jokerNumber
+        });
+      }
+
+      saveState();
+      showToast('Elmentve a Kedvencek közé! ⭐', 'success');
+    }
+
+    /*************************************************************************
+     * 7. SZELVÉNY MŰVELETEK (LEJÁRAT PIPÁLÁS, ÚJRAJÁTSZÁS, TÖRLÉS)
+     *************************************************************************/
+    function toggleDrawCompleted(ticketId, drawIdx) {
+      const t = state.tickets.find(item => item.id === ticketId);
+      if (!t || !t.draws[drawIdx]) return;
+      t.draws[drawIdx].completed = !t.draws[drawIdx].completed;
+      saveState();
+      render();
+    }
+
+    function toggleTicketExpand(ticketId) {
+      state.expandedTickets[ticketId] = !state.expandedTickets[ticketId];
+      render();
+    }
+
+    function replayTicket(ticketId) {
+      const orig = state.tickets.find(t => t.id === ticketId);
+      if (!orig) return;
+
+      const freshDraws = generateDrawSchedule(orig.gameId, orig.duration);
+      const cloned = {
+        ...JSON.parse(JSON.stringify(orig)),
+        id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        isSample: false,
+        createdAt: new Date().toISOString(),
+        draws: freshDraws
+      };
+
+      state.tickets.unshift(cloned);
+      state.ticketFilterStatus = 'active';
+      state.expandedTickets[cloned.id] = true;
+      saveState();
+      showToast(`${GAMES[orig.gameId].name} újrajátszva (${orig.duration} húzásra)! 🔄`, 'success');
+      render();
+    }
+
+    function confirmDeleteTicket(ticketId) {
+      openModal({
+        title: 'Szelvény törlése',
+        body: 'Biztosan törlöd ezt a lottószelvényt a listából?',
+        confirmText: 'Törlés',
+        confirmClass: 'bg-red-500 text-white',
+        onConfirm: () => {
+          state.tickets = state.tickets.filter(t => t.id !== ticketId);
+          saveState();
+          showToast('Szelvény törölve.', 'info');
+          render();
+        }
+      });
+    }
+
+    function clearSampleTickets() {
+      state.tickets = state.tickets.filter(t => !t.isSample);
+      saveState();
+      showToast('Minta szelvények eltávolítva.', 'info');
+      render();
+    }
+
+    /*************************************************************************
+     * 8. ELLENŐRZÉS ÉS PÉLDA NYERŐSZÁM GENERÁLÁS
+     *************************************************************************/
+    function ensureWinningDrawObj(gameId) {
+      if (!state.winningDraws[gameId]) {
+        if (gameId === 'otos' || gameId === 'hatos' || gameId === 'keno') {
+          state.winningDraws[gameId] = { numbers: [] };
+        } else if (gameId === 'skandi') {
+          state.winningDraws[gameId] = { gepi: [], kezi: [] };
+        } else if (gameId === 'euro') {
+          state.winningDraws[gameId] = { numbersA: [], numbersB: [] };
+        } else if (gameId === 'putto') {
+          state.winningDraws[gameId] = { numbersA: [], numberB: null };
+        } else if (gameId === 'mazli') {
+          state.winningDraws[gameId] = { year: 1990, month: 5, day: 15, symbol: 'lohere' };
+        } else if (gameId === 'joker') {
+          state.winningDraws[gameId] = { joker: '000000' };
+        }
+      }
+      return state.winningDraws[gameId];
+    }
+
+    function toggleWinningNumber(gameId, num, bucket = 'numbers') {
+      const obj = ensureWinningDrawObj(gameId);
+      const g = GAMES[gameId];
+
+      if (gameId === 'putto' && bucket === 'numberB') {
+        obj.numberB = obj.numberB === num ? null : num;
+        saveState();
+        render();
+        return;
+      }
+
+      const arr = obj[bucket] || [];
+      let maxAllowed = 5;
+      if (gameId === 'otos') maxAllowed = 5;
+      else if (gameId === 'hatos') maxAllowed = 6;
+      else if (gameId === 'skandi') maxAllowed = 7;
+      else if (gameId === 'euro') maxAllowed = bucket === 'numbersA' ? 5 : 2;
+      else if (gameId === 'putto') maxAllowed = 8;
+      else if (gameId === 'keno') maxAllowed = 20;
+
+      const idx = arr.indexOf(num);
+      if (idx >= 0) {
+        arr.splice(idx, 1);
+      } else {
+        if (arr.length >= maxAllowed) {
+          showToast(`Maximum ${maxAllowed} nyerőszám jelölhető ki!`, 'warning');
+          return;
+        }
+        arr.push(num);
+        arr.sort((a, b) => a - b);
+      }
+      obj[bucket] = arr;
+      saveState();
+      render();
+    }
+
+    function stepWinningJokerDigit(pos, delta) {
+      const obj = ensureWinningDrawObj('joker');
+      const digits = (obj.joker || '000000').split('').map(Number);
+      digits[pos] = (digits[pos] + delta + 10) % 10;
+      obj.joker = digits.join('');
+      saveState();
+      render();
+    }
+
+    // Smart sample winning numbers generator (blends numbers from user's tickets if present so hit highlighting shines immediately!)
+    function generateSampleWinningNumbers(gameId) {
+      const g = GAMES[gameId];
+      const userTickets = state.tickets.filter(t => t.gameId === gameId);
+
+      const blendWithTicketNumbers = (poolMax, count, ticketNums) => {
+        const chosen = new Set();
+        if (ticketNums && ticketNums.length > 0) {
+          // Pick ~60% of the winning numbers from the user's ticket so hits are visible
+          const shuffledUser = [...ticketNums].sort(() => Math.random() - 0.5);
+          const take = Math.min(shuffledUser.length, Math.max(2, Math.ceil(count * 0.6)));
+          shuffledUser.slice(0, take).forEach(n => chosen.add(n));
+        }
+        while (chosen.size < count) {
+          chosen.add(Math.floor(Math.random() * poolMax) + 1);
+        }
+        return Array.from(chosen).sort((a, b) => a - b);
+      };
+
+      if (gameId === 'otos' || gameId === 'hatos') {
+        const sampleNums = userTickets[0]?.fields[0]?.numbers || [];
+        state.winningDraws[gameId] = {
+          numbers: blendWithTicketNumbers(g.maxNum, g.pickCount, sampleNums)
+        };
+      } else if (gameId === 'skandi') {
+        const sampleNums = userTickets[0]?.fields[0]?.numbers || [];
+        state.winningDraws[gameId] = {
+          gepi: blendWithTicketNumbers(35, 7, sampleNums),
+          kezi: generateRandomUnique(1, 35, 7)
+        };
+      } else if (gameId === 'euro') {
+        const sampleA = userTickets[0]?.fields[0]?.numbersA || [];
+        const sampleB = userTickets[0]?.fields[0]?.numbersB || [];
+        state.winningDraws[gameId] = {
+          numbersA: blendWithTicketNumbers(50, 5, sampleA),
+          numbersB: blendWithTicketNumbers(12, 2, sampleB)
+        };
+      } else if (gameId === 'putto') {
+        const sampleA = userTickets[0]?.fields[0]?.numbersA || [];
+        const sampleB = userTickets[0]?.fields[0]?.numbersB?.[0];
+        state.winningDraws[gameId] = {
+          numbersA: blendWithTicketNumbers(20, 8, sampleA),
+          numberB: sampleB || (Math.floor(Math.random() * 4) + 1)
+        };
+      } else if (gameId === 'keno') {
+        const sampleNums = userTickets[0]?.fields[0]?.numbers || [];
+        state.winningDraws[gameId] = {
+          numbers: blendWithTicketNumbers(80, 20, sampleNums)
+        };
+      } else if (gameId === 'mazli') {
+        const f = userTickets[0]?.fields[0];
+        if (f) {
+          state.winningDraws[gameId] = {
+            year: f.year,
+            month: f.month,
+            day: Math.random() > 0.4 ? f.day : ((f.day % 28) + 1),
+            symbol: f.symbol
+          };
+        } else {
+          state.winningDraws[gameId] = {
+            year: 1992,
+            month: 8,
+            day: 20,
+            symbol: MAZLI_SYMBOLS[Math.floor(Math.random() * MAZLI_SYMBOLS.length)].id
+          };
+        }
+      } else if (gameId === 'joker') {
+        const jokerTicket = state.tickets.find(t => t.jokerNumber && t.jokerNumber.length === 6);
+        if (jokerTicket) {
+          // Match last 3 or 4 digits for demonstration
+          const prefix = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+          state.winningDraws[gameId] = {
+            joker: prefix + jokerTicket.jokerNumber.slice(2)
+          };
+        } else {
+          state.winningDraws[gameId] = { joker: generateRandomJoker() };
+        }
+      }
+
+      // Also sync Joker if any user ticket for this game has +Joker attached
+      const ticketWithJoker = userTickets.find(t => t.hasJoker && t.jokerNumber);
+      if (ticketWithJoker && gameId !== 'joker') {
+        const prefix = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+        state.winningDraws.joker = {
+          joker: prefix + ticketWithJoker.jokerNumber.slice(3)
+        };
+      }
+
+      saveState();
+      showToast(`Példa nyerőszámok betöltve (${g.name})! ✨`, 'success');
+      render();
+    }
+
+    function clearWinningNumbers(gameId) {
+      delete state.winningDraws[gameId];
+      saveState();
+      showToast('Nyerőszámok törölve.', 'info');
+      render();
+    }
+
+    /*************************************************************************
+     * 9. NAVIGÁCIÓ, MODÁLOK ÉS TOAST ÉRTESÍTÉSEK
+     *************************************************************************/
+    function navigateTo(tab, options = {}) {
+      state.activeTab = tab;
+      if (tab === 'new' && (!state.builder || options.resetBuilder)) {
+        initBuilder(options.gameId || 'otos', options.prefill || null);
+      }
+      if (tab === 'check' && options.gameId) {
+        state.checkGame = options.gameId;
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      render();
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-emerald-950/95 border-emerald-500/50 text-emerald-200',
+        warning: 'bg-amber-950/95 border-amber-500/50 text-amber-200',
+        info: 'bg-oled-elevated/95 border-oled-border text-slate-100'
+      };
+      toast.className = `px-4 py-2.5 rounded-2xl border backdrop-blur-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-card ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.25s ease';
+        setTimeout(() => toast.remove(), 260);
+      }, 2400);
+    }
+
+    function openModal({ title, body, customHtml = '', confirmText = 'Rendben', confirmClass = 'bg-emerald-500 text-slate-950', onConfirm = null }) {
+      const overlay = document.getElementById('modal-overlay');
+      const card = document.getElementById('modal-card');
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-white">${title}</h3>
+          <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-oled-elevated text-oled-muted hover:text-white flex items-center justify-center">✕</button>
+        </div>
+        ${body ? `<p class="text-xs text-slate-300 leading-relaxed">${body}</p>` : ''}
+        ${customHtml}
+        <div class="flex items-center gap-2.5 pt-2">
+          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-oled-elevated text-slate-300 font-semibold text-xs active:scale-95 transition">Mégse</button>
+          <button id="modal-confirm-btn" class="flex-1 py-2.5 rounded-xl font-bold text-xs active:scale-95 transition ${confirmClass}">${confirmText}</button>
+        </div>
+      `;
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+
+      document.getElementById('modal-confirm-btn').onclick = () => {
+        if (onConfirm) onConfirm();
+        closeModal();
+      };
+    }
+
+    function closeModal() {
+      const overlay = document.getElementById('modal-overlay');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    }
+
+    function updateBadges() {
+      const activeCount = state.tickets.filter(t => !getTicketDrawStats(t).isExpired).length;
+      const badge = document.getElementById('badge-active-count');
+      if (badge) {
+        if (activeCount > 0) {
+          badge.textContent = activeCount;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      // Check if any active ticket currently has hits
+      const hasAnyHits = state.tickets.some(t => {
+        const ev = evaluateTicketHits(t);
+        return ev && ev.totalMatchedNumbers > 0;
+      });
+      const hitDot = document.getElementById('badge-hit-dot');
+      if (hitDot) {
+        hitDot.classList.toggle('hidden', !hasAnyHits);
+      }
+
+      // Update active tab styling
+      ['tickets', 'new', 'check', 'favorites'].forEach(tab => {
+        const btn = document.getElementById(`tab-${tab}`);
+        if (!btn) return;
+        if (state.activeTab === tab) {
+          btn.classList.add('text-emerald-400');
+          btn.classList.remove('text-oled-muted');
+        } else {
+          btn.classList.remove('text-emerald-400');
+          btn.classList.add('text-oled-muted');
+        }
+      });
+    }
+
+    /*************************************************************************
+     * 10. UI RENDERING — 1. FÜL: SZELVÉNYEIM (LEJÁRATKÖVETŐ & TALÁLATOK)
+     *************************************************************************/
+    function renderTicketsView() {
+      const allTickets = state.tickets;
+      const activeTickets = allTickets.filter(t => !getTicketDrawStats(t).isExpired);
+      const expiredTickets = allTickets.filter(t => getTicketDrawStats(t).isExpired);
+      const hasSample = allTickets.some(t => t.isSample);
+
+      // Filter by status
+      let filtered = allTickets;
+      if (state.ticketFilterStatus === 'active') filtered = activeTickets;
+      else if (state.ticketFilterStatus === 'expired') filtered = expiredTickets;
+
+      // Filter by game
+      if (state.ticketFilterGame !== 'all') {
+        filtered = filtered.filter(t => t.gameId === state.ticketFilterGame);
+      }
+
+      // Calculate total hits across currently evaluated tickets
+      let globalHitCount = 0;
+      allTickets.forEach(t => {
+        const ev = evaluateTicketHits(t);
+        if (ev) globalHitCount += ev.totalMatchedNumbers;
+      });
+
+      let html = `
+        <!-- Top Quick Summary Cards -->
+        <div class="grid grid-cols-3 gap-2.5">
+          <div class="bg-oled-card border border-oled-border rounded-2xl p-3">
+            <div class="text-[11px] text-oled-muted font-medium">Aktív szelvény</div>
+            <div class="text-xl font-extrabold text-white mt-0.5 font-mono">${activeTickets.length} <span class="text-xs font-normal text-oled-muted">db</span></div>
+          </div>
+          <div class="bg-oled-card border border-oled-border rounded-2xl p-3">
+            <div class="text-[11px] text-oled-muted font-medium">Lejárt</div>
+            <div class="text-xl font-extrabold text-slate-300 mt-0.5 font-mono">${expiredTickets.length} <span class="text-xs font-normal text-oled-muted">db</span></div>
+          </div>
+          <div onclick="navigateTo('check')" class="bg-oled-card border ${globalHitCount > 0 ? 'border-emerald-500/45 bg-emerald-950/20' : 'border-oled-border'} rounded-2xl p-3 cursor-pointer active:scale-95 transition">
+            <div class="text-[11px] text-oled-muted font-medium">Találatok</div>
+            <div class="text-xl font-extrabold ${globalHitCount > 0 ? 'text-emerald-400' : 'text-slate-400'} mt-0.5 font-mono">${globalHitCount} <span class="text-xs font-normal">db</span></div>
+          </div>
+        </div>
+      `;
+
+      // Sample tickets banner
+      if (hasSample) {
+        html += `
+          <div class="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-oled-elevated/80 border border-oled-border text-xs">
+            <div class="flex items-center gap-2 text-slate-300">
+              <span class="text-amber-400">✨</span>
+              <span>3 minta szelvény betöltve a kipróbáláshoz.</span>
+            </div>
+            <button onclick="clearSampleTickets()" class="text-[11px] font-bold text-rose-400 hover:text-rose-300 whitespace-nowrap px-2 py-1 rounded-lg bg-rose-500/10">
+              Minták törlése
+            </button>
+          </div>
+        `;
+      }
+
+      // iOS Segmented Control for Active / Expired / All
+      html += `
+        <div class="bg-oled-card p-1 rounded-2xl border border-oled-border grid grid-cols-3 gap-1">
+          <button onclick="state.ticketFilterStatus='active'; render()" class="py-2 rounded-xl text-xs font-bold transition ${state.ticketFilterStatus === 'active' ? 'bg-oled-elevated text-white shadow' : 'text-oled-muted'}">
+            Aktív (${activeTickets.length})
+          </button>
+          <button onclick="state.ticketFilterStatus='expired'; render()" class="py-2 rounded-xl text-xs font-bold transition ${state.ticketFilterStatus === 'expired' ? 'bg-oled-elevated text-white shadow' : 'text-oled-muted'}">
+            Lejárt (${expiredTickets.length})
+          </button>
+          <button onclick="state.ticketFilterStatus='all'; render()" class="py-2 rounded-xl text-xs font-bold transition ${state.ticketFilterStatus === 'all' ? 'bg-oled-elevated text-white shadow' : 'text-oled-muted'}">
+            Összes (${allTickets.length})
+          </button>
+        </div>
+
+        <!-- Horizontal Game Filter Strip -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          <button onclick="state.ticketFilterGame='all'; render()" class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition ${state.ticketFilterGame === 'all' ? 'bg-white text-slate-950 border-white' : 'bg-oled-card text-oled-muted border-oled-border'}">
+            Minden játék
+          </button>
+          ${Object.values(GAMES).map(g => `
+            <button onclick="state.ticketFilterGame='${g.id}'; render()" class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border flex items-center gap-1.5 transition ${state.ticketFilterGame === g.id ? 'text-white border-white/40' : 'bg-oled-card text-oled-muted border-oled-border'}" style="${state.ticketFilterGame === g.id ? `background:${g.bgSoft}; border-color:${g.color}; color:#fff;` : ''}">
+              <span class="w-2 h-2 rounded-full" style="background:${g.color}"></span>
+              <span>${g.shortName}</span>
+            </button>
+          `).join('')}
+        </div>
+      `;
+
+      // Empty State
+      if (filtered.length === 0) {
+        html += `
+          <div class="bg-oled-card border border-oled-border rounded-3xl p-8 text-center space-y-3">
+            <div class="w-14 h-14 rounded-2xl bg-oled-elevated mx-auto flex items-center justify-center text-2xl">🎟️</div>
+            <h3 class="text-base font-bold text-white">Nincs szelvény ebben a nézetben</h3>
+            <p class="text-xs text-oled-muted max-w-xs mx-auto leading-relaxed">
+              Hozz létre egy új szelvényt akár 5 hetes vagy 10 húzásos futamidővel, és kövesd élőben a lejáratot és a találataidat!
+            </p>
+            <button onclick="navigateTo('new')" class="px-5 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs active:scale-95 transition">
+              + Új szelvény felvétele
+            </button>
+          </div>
+        `;
+        return html;
+      }
+
+      // Ticket Cards
+      html += `<div class="space-y-3.5">`;
+      filtered.forEach(ticket => {
+        html += renderTicketCard(ticket);
+      });
+      html += `</div>`;
+
+      return html;
+    }
+
+    function renderTicketCard(ticket) {
+      const g = GAMES[ticket.gameId];
+      const stats = getTicketDrawStats(ticket);
+      const hitEval = evaluateTicketHits(ticket);
+      const combos = calculateTicketCombinations(ticket);
+      const isExpanded = !!state.expandedTickets[ticket.id];
+
+      // Determine status badge & bar colors
+      let statusBadge = '';
+      let barColor = g.color;
+      if (stats.isExpired) {
+        statusBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-800 text-slate-400 border border-slate-700">LEJÁRT</span>`;
+        barColor = '#64748B';
+      } else if (stats.isLastDraw) {
+        statusBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40">UTOLSÓ HÚZÁS!</span>`;
+        barColor = '#F59E0B';
+      } else {
+        statusBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold" style="background:${g.bgSoft}; color:${g.color}; border:1px solid ${g.borderSoft}">AKTÍV</span>`;
+      }
+
+      // Mode badges
+      const modeBadges = [];
+      if (ticket.mode === 'combo') {
+        modeBadges.push(`Kombinációs (${combos} alapjáték)`);
+      } else if (ticket.gameId === 'keno') {
+        modeBadges.push(`${ticket.kenoType}-es típus`);
+      }
+      if (ticket.duration > 1) {
+        modeBadges.push(`${ticket.duration} húzásos`);
+      }
+      if (ticket.multiplier && ticket.multiplier > 1) {
+        modeBadges.push(`${ticket.multiplier}× tét`);
+      }
+      if (ticket.hasJoker) {
+        modeBadges.push('+ Joker');
+      }
+      if (ticket.isSample) {
+        modeBadges.push('Minta');
+      }
+
+      // Render played fields with live hit highlighting
+      const fieldsHtml = renderTicketFieldsDisplay(ticket, hitEval);
+
+      // Render Joker row if present
+      let jokerHtml = '';
+      if (ticket.gameId === 'joker' || (ticket.hasJoker && ticket.jokerNumber)) {
+        const jMask = (hitEval?.fieldResults?.[0]?.jokerEval?.matchedMask)
+          || (hitEval?.attachedJokerEval?.matchedMask)
+          || [false, false, false, false, false, false];
+        const jHits = (hitEval?.fieldResults?.[0]?.jokerEval?.matchedDigits)
+          || (hitEval?.attachedJokerEval?.matchedDigits)
+          || 0;
+
+        jokerHtml = `
+          <div class="mt-2.5 pt-2.5 border-t border-oled-border/80 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400">Joker</span>
+              <div class="flex items-center gap-1 font-mono">
+                ${ticket.jokerNumber.split('').map((digit, idx) => `
+                  <span class="w-6 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold border ${jMask[idx] ? 'ball-hit-gold' : 'bg-oled-elevated border-cyan-500/30 text-cyan-300'}">
+                    ${digit}
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+            ${jHits >= 2 ? `<span class="text-[11px] font-bold text-amber-400">${jHits} helyes számjegy!</span>` : ''}
+          </div>
+        `;
+      }
+
+      // Live Hit Banner if winning numbers exist for this game
+      let hitBannerHtml = '';
+      if (hitEval) {
+        const hasHit = hitEval.totalMatchedNumbers > 0 || (hitEval.attachedJokerEval && hitEval.attachedJokerEval.matchedDigits >= 2);
+        hitBannerHtml = `
+          <div onclick="navigateTo('check', { gameId: '${ticket.gameId}' })" class="mt-2.5 px-3 py-2 rounded-xl border flex items-center justify-between cursor-pointer ${hasHit ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-oled-elevated/70 border-oled-border text-oled-muted'}">
+            <div class="flex items-center gap-2 text-xs font-bold">
+              <span>${hasHit ? '🎯' : '🔎'}</span>
+              <span>${hitEval.bestSummary}</span>
+            </div>
+            <span class="text-[10px] font-semibold underline opacity-80">Részletek</span>
+          </div>
+        `;
+      }
+
+      return `
+        <article class="bg-oled-card border ${stats.isLastDraw ? 'last-draw-pulse' : 'border-oled-border'} rounded-3xl p-4 shadow-lg animate-card">
+          <!-- Card Header -->
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm shadow-inner" style="background:${g.bgSoft}; color:${g.color}; border:1px solid ${g.borderSoft}">
+                ${g.id === 'otos' ? '5' : g.id === 'hatos' ? '6' : g.id === 'skandi' ? '7' : g.id === 'euro' ? '€' : g.id === 'putto' ? 'P' : g.id === 'mazli' ? '🍀' : g.id === 'keno' ? 'K' : 'J'}
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h3 class="text-sm font-extrabold text-white">${g.name}</h3>
+                  ${statusBadge}
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap mt-1">
+                  ${modeBadges.map(b => `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-oled-elevated text-slate-300 border border-oled-border">${b}</span>`).join('')}
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1">
+              <button onclick="replayTicket('${ticket.id}')" title="Újrajátszás" class="p-2 rounded-xl bg-oled-elevated hover:bg-slate-800 text-slate-300 active:scale-90 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button onclick="confirmDeleteTicket('${ticket.id}')" title="Törlés" class="p-2 rounded-xl bg-oled-elevated hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 active:scale-90 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Expiration & Multi-Draw Countdown Box -->
+          <div class="mt-3 p-3 rounded-2xl bg-oled-bg/80 border border-oled-border/90 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-300 font-semibold">
+                Hátralévő húzások: <strong class="text-white font-mono">${stats.remaining} / ${stats.total}</strong>
+              </span>
+              <span class="text-[11px] font-semibold ${stats.isExpired ? 'text-slate-400' : stats.isLastDraw ? 'text-amber-400' : 'text-emerald-400'}">
+                Lejárat: ${stats.expiryLabel}
+              </span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full h-2 rounded-full bg-oled-elevated overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-300" style="width: ${stats.progressPct}%; background: ${barColor};"></div>
+            </div>
+
+            <div class="flex items-center justify-between pt-0.5">
+              <span class="text-[11px] text-oled-muted">
+                ${stats.isExpired ? 'Minden sorsolás lezajlott.' : `Következő: <span class="text-slate-200 font-medium">${stats.nextDrawLabel}</span>`}
+              </span>
+              <button onclick="toggleTicketExpand('${ticket.id}')" class="text-[11px] font-bold text-slate-300 hover:text-white flex items-center gap-1">
+                <span>${isExpanded ? 'Húzások elrejtése' : 'Sorsolási napok'}</span>
+                <svg class="w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Collapsible Draw Schedule List -->
+            ${isExpanded ? `
+              <div class="pt-2 mt-1 border-t border-oled-border/70 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                <div class="text-[10px] text-oled-muted pb-0.5">Koppints egy húzásra a teljesített állapot váltásához:</div>
+                ${ticket.draws.map((d, idx) => `
+                  <div onclick="toggleDrawCompleted('${ticket.id}', ${idx})" class="flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer transition ${d.completed ? 'bg-oled-elevated/40 text-oled-muted line-through' : 'bg-oled-elevated text-slate-200'}">
+                    <div class="flex items-center gap-2 text-xs">
+                      <span class="w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${d.completed ? 'bg-emerald-500 border-emerald-500 text-slate-950 font-bold' : 'border-slate-600'}">
+                        ${d.completed ? '✓' : ''}
+                      </span>
+                      <span class="font-mono text-[11px]">#${d.index}</span>
+                      <span class="font-medium">${d.label}</span>
+                    </div>
+                    <span class="text-[10px] font-semibold ${d.completed ? 'text-slate-500' : 'text-emerald-400'}">${d.completed ? 'Lezajlott' : 'Aktív'}</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Played Numbers / Fields -->
+          <div class="mt-3 space-y-2">
+            ${fieldsHtml}
+          </div>
+
+          ${jokerHtml}
+          ${hitBannerHtml}
+
+          <!-- Prominent Replay CTA on Expired Tickets -->
+          ${stats.isExpired ? `
+            <button onclick="replayTicket('${ticket.id}')" class="mt-3 w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-white text-slate-950 active:scale-95 transition shadow">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Szelvény újrajátszása (${ticket.duration} húzásra)</span>
+            </button>
+          ` : ''}
+        </article>
+      `;
+    }
+
+    function renderTicketFieldsDisplay(ticket, hitEval) {
+      const g = GAMES[ticket.gameId];
+
+      if (ticket.gameId === 'joker') {
+        return ''; // Rendered in Joker section
+      }
+
+      return ticket.fields.map((f, idx) => {
+        const fRes = hitEval?.fieldResults?.[idx];
+
+        if (ticket.gameId === 'otos' || ticket.gameId === 'hatos' || ticket.gameId === 'skandi' || ticket.gameId === 'keno') {
+          const hitSet = new Set(fRes?.hits || []);
+          return `
+            <div class="flex items-center justify-between gap-2 flex-wrap bg-oled-elevated/50 px-3 py-2 rounded-2xl border border-oled-border/60">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[10px] font-bold text-oled-muted mr-1">${idx + 1}.</span>
+                ${f.numbers.map(num => {
+                  const isHit = hitSet.has(num);
+                  return `
+                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono border ${isHit ? 'ball-hit' : 'bg-oled-card border-oled-border text-slate-100'}">
+                      ${num}
+                    </span>
+                  `;
+                }).join('')}
+              </div>
+              ${fRes && fRes.hitCount > 0 ? `<span class="text-[11px] font-extrabold text-emerald-400">${fRes.hitCount} találat!</span>` : ''}
+            </div>
+          `;
+        }
+
+        if (ticket.gameId === 'euro' || ticket.gameId === 'putto') {
+          const hitSetA = new Set(fRes?.hitsA || []);
+          const hitSetB = new Set(fRes?.hitsB || []);
+          return `
+            <div class="flex items-center justify-between gap-2 flex-wrap bg-oled-elevated/50 px-3 py-2 rounded-2xl border border-oled-border/60">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[10px] font-bold text-oled-muted mr-0.5">${idx + 1}.</span>
+                ${f.numbersA.map(num => `
+                  <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono border ${hitSetA.has(num) ? 'ball-hit' : 'bg-oled-card border-oled-border text-slate-100'}">
+                    ${num}
+                  </span>
+                `).join('')}
+                <span class="text-oled-muted font-bold text-xs mx-0.5">+</span>
+                ${f.numbersB.map(num => `
+                  <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono border ${hitSetB.has(num) ? 'ball-hit-gold' : 'bg-amber-500/15 border-amber-500/40 text-amber-300'}">
+                    ${num}
+                  </span>
+                `).join('')}
+              </div>
+              ${fRes ? `<span class="text-[11px] font-extrabold text-amber-400">${fRes.hitsA.length}+${fRes.hitsB.length}</span>` : ''}
+            </div>
+          `;
+        }
+
+        if (ticket.gameId === 'mazli') {
+          const symObj = MAZLI_SYMBOLS.find(s => s.id === f.symbol) || MAZLI_SYMBOLS[0];
+          return `
+            <div class="flex items-center justify-between gap-2 flex-wrap bg-oled-elevated/50 px-3 py-2 rounded-2xl border border-oled-border/60">
+              <div class="flex items-center gap-1.5 flex-wrap text-xs font-mono font-bold">
+                <span class="text-[10px] font-sans text-oled-muted mr-1">${idx + 1}.</span>
+                <span class="px-2 py-1 rounded-lg border ${fRes?.yearHit ? 'ball-hit' : 'bg-oled-card border-oled-border text-slate-100'}">${f.year}</span>
+                <span class="px-2 py-1 rounded-lg border ${fRes?.monthHit ? 'ball-hit' : 'bg-oled-card border-oled-border text-slate-100'}">${HU_MONTHS_SHORT[f.month - 1]}</span>
+                <span class="px-2 py-1 rounded-lg border ${fRes?.dayHit ? 'ball-hit' : 'bg-oled-card border-oled-border text-slate-100'}">${f.day}.</span>
+                <span class="px-2.5 py-1 rounded-lg border font-sans flex items-center gap-1 ${fRes?.symbolHit ? 'ball-hit-gold' : 'bg-pink-500/15 border-pink-500/40 text-pink-200'}">
+                  <span>${symObj.icon}</span>
+                  <span>${symObj.name}</span>
+                </span>
+              </div>
+            </div>
+          `;
+        }
+
+        return '';
+      }).join('');
+    }
+
+    /*************************************************************************
+     * 11. UI RENDERING — 2. FÜL: ÚJ SZELVÉNY LÉTREHOZÓ (MINDEN JÁTÉKMÓD)
+     *************************************************************************/
+    function renderNewTicketView() {
+      if (!state.builder) initBuilder('otos');
+      const b = state.builder;
+      const g = GAMES[b.gameId];
+      const activeField = b.fields[b.activeFieldIdx];
+
+      // Calculate total base plays / combinations
+      let comboCount = 1;
+      if (b.mode === 'combo') {
+        if (b.gameId === 'otos') comboCount = nCr(activeField.numbers.length, 5);
+        else if (b.gameId === 'hatos') comboCount = nCr(activeField.numbers.length, 6);
+        else if (b.gameId === 'skandi') comboCount = nCr(activeField.numbers.length, 7);
+        else if (b.gameId === 'euro') comboCount = nCr(activeField.numbersA.length, 5) * nCr(activeField.numbersB.length, 2);
+        else if (b.gameId === 'putto') comboCount = nCr(activeField.numbersA.length, 8) * nCr(activeField.numbersB.length, 1);
+      } else {
+        comboCount = b.fields.length;
+      }
+
+      // Preview exact expiry date
+      const previewDraws = generateDrawSchedule(b.gameId, b.duration, b.customStartDate || null);
+      const previewExpiry = previewDraws[previewDraws.length - 1]?.label || '';
+
+      let html = `
+        <!-- Game Selector Pills -->
+        <div class="space-y-2">
+          <div class="text-xs font-bold text-oled-muted uppercase tracking-wider px-1">1. Válassz játékot</div>
+          <div class="grid grid-cols-4 gap-2">
+            ${Object.values(GAMES).map(gameItem => {
+              const selected = gameItem.id === b.gameId;
+              return `
+                <button onclick="initBuilder('${gameItem.id}'); render()" class="p-2.5 rounded-2xl border text-left transition active:scale-95 flex flex-col justify-between min-h-[66px]" style="background:${selected ? gameItem.bgSoft : '#141720'}; border-color:${selected ? gameItem.color : '#232838'}">
+                  <span class="w-2.5 h-2.5 rounded-full" style="background:${gameItem.color}"></span>
+                  <div class="mt-2">
+                    <div class="text-[11px] font-extrabold text-white leading-tight">${gameItem.shortName}</div>
+                    <div class="text-[9px] text-oled-muted mt-0.5 truncate">${gameItem.drawDaysLabel.split(' ')[0]}</div>
+                  </div>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Selected Game Header Card -->
+        <div class="bg-oled-card border rounded-3xl p-4 space-y-3" style="border-color:${g.borderSoft}">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-extrabold text-white">${g.name}</h2>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full" style="background:${g.bgSoft}; color:${g.color}">${g.subtitle}</span>
+              </div>
+              <p class="text-[11px] text-oled-muted mt-0.5">Sorsolás: <span class="text-slate-200 font-medium">${g.drawDaysLabel}</span></p>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="saveFieldAsFavorite()" title="Mentés kedvencnek" class="p-2.5 rounded-xl bg-oled-elevated border border-oled-border text-amber-400 active:scale-90 transition">
+                ⭐
+              </button>
+              <button onclick="quickPickCurrentField()" class="px-3 py-2 rounded-xl font-bold text-xs text-slate-950 active:scale-95 transition shadow" style="background:${g.color}">
+                🎲 Gyors tipp
+              </button>
+            </div>
+          </div>
+
+          <!-- Game Mode Selector (Normál vs Kombinációs) -->
+          ${g.supportsCombo ? `
+            <div class="bg-oled-bg p-1 rounded-2xl border border-oled-border grid grid-cols-2 gap-1">
+              <button onclick="state.builder.mode='normal'; state.builder.fields=[createEmptyField('${b.gameId}')]; state.builder.activeFieldIdx=0; render()" class="py-2 rounded-xl text-xs font-bold transition ${b.mode === 'normal' ? 'bg-oled-elevated text-white shadow' : 'text-oled-muted'}">
+                Normál játék (1–${g.maxFields} mező)
+              </button>
+              <button onclick="state.builder.mode='combo'; state.builder.fields=[createEmptyField('${b.gameId}')]; state.builder.activeFieldIdx=0; render()" class="py-2 rounded-xl text-xs font-bold transition ${b.mode === 'combo' ? 'bg-oled-elevated text-white shadow' : 'text-oled-muted'}">
+                Kombinációs játék
+              </button>
+            </div>
+          ` : ''}
+
+          <!-- Kenó Type Selector (1-es .. 10-es) -->
+          ${b.gameId === 'keno' ? `
+            <div class="space-y-1.5">
+              <div class="text-[11px] font-bold text-oled-muted">Kenó játéktípus (hány számot játszol meg):</div>
+              <div class="grid grid-cols-5 gap-1.5">
+                ${[1,2,3,4,5,6,7,8,9,10].map(kType => `
+                  <button onclick="state.builder.kenoType=${kType}; state.builder.fields.forEach(f => f.numbers = f.numbers.slice(0, ${kType})); render()" class="py-2 rounded-xl text-xs font-extrabold border transition ${b.kenoType === kType ? 'text-white border-purple-400 bg-purple-500/25' : 'bg-oled-bg border-oled-border text-oled-muted'}">
+                    ${kType}-es
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Field Tabs (Normal Mode) -->
+          ${b.mode === 'normal' && g.maxFields ? `
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+              ${b.fields.map((_, idx) => `
+                <button onclick="state.builder.activeFieldIdx=${idx}; render()" class="px-3 py-1.5 rounded-xl text-xs font-bold border transition whitespace-nowrap ${b.activeFieldIdx === idx ? 'text-white' : 'bg-oled-bg text-oled-muted border-oled-border'}" style="${b.activeFieldIdx === idx ? `background:${g.bgSoft}; border-color:${g.color}` : ''}">
+                  ${idx + 1}. mező
+                </button>
+              `).join('')}
+              ${b.fields.length < g.maxFields ? `
+                <button onclick="state.builder.fields.push(createEmptyField('${b.gameId}', ${b.kenoType})); state.builder.activeFieldIdx=state.builder.fields.length-1; render()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-oled-elevated text-slate-300 border border-oled-border whitespace-nowrap active:scale-95">
+                  + Mező
+                </button>
+              ` : ''}
+              ${b.fields.length > 1 ? `
+                <button onclick="state.builder.fields.splice(state.builder.activeFieldIdx, 1); state.builder.activeFieldIdx=Math.max(0, state.builder.activeFieldIdx-1); render()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap">
+                  Mező törlése
+                </button>
+              ` : ''}
+            </div>
+          ` : ''}
+
+          <!-- Number Grid / Specific Input Area -->
+          <div class="pt-1">
+            ${renderBuilderInteractiveGrid()}
+          </div>
+
+          <!-- Combinatorics Live Info Pill -->
+          ${b.mode === 'combo' ? `
+            <div class="p-3 rounded-2xl bg-oled-bg border border-oled-border flex items-center justify-between text-xs">
+              <span class="text-oled-muted">Kombinációk száma:</span>
+              <span class="font-extrabold font-mono text-sm" style="color:${g.color}">${comboCount} alapjáték</span>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Duration, Multiplier & Joker Card -->
+        <div class="bg-oled-card border border-oled-border rounded-3xl p-4 space-y-4">
+          <div class="text-xs font-bold text-oled-muted uppercase tracking-wider">2. Futamidő és extrák</div>
+
+          <!-- Duration Selector -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-200">Hány húzásra / hétre játszod meg?</label>
+            <div class="grid grid-cols-2 gap-2">
+              ${g.durations.map(dur => `
+                <button onclick="state.builder.duration=${dur.value}; render()" class="py-2.5 px-3 rounded-2xl text-xs font-bold border text-left transition active:scale-95 flex items-center justify-between ${b.duration === dur.value ? 'text-white' : 'bg-oled-bg border-oled-border text-oled-muted'}" style="${b.duration === dur.value ? `background:${g.bgSoft}; border-color:${g.color}` : ''}">
+                  <span>${dur.label}</span>
+                  ${b.duration === dur.value ? `<span style="color:${g.color}">●</span>` : ''}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Optional Start Date Override (great for registering existing multi-week tickets!) -->
+          <div class="space-y-1">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-semibold text-oled-muted">Első sorsolás dátuma (opcionális):</label>
+              ${b.customStartDate ? `<button onclick="state.builder.customStartDate=''; render()" class="text-[10px] text-rose-400 font-bold">Alaphelyzet</button>` : ''}
+            </div>
+            <input type="date" value="${b.customStartDate}" onchange="state.builder.customStartDate=this.value; render()" class="w-full px-3 py-2 rounded-xl bg-oled-bg border border-oled-border text-xs text-slate-200 focus:outline-none focus:border-emerald-500" />
+          </div>
+
+          <!-- Live Expiry Preview Banner -->
+          <div class="p-3 rounded-2xl bg-oled-bg border border-oled-border flex items-center justify-between gap-2">
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-oled-muted font-bold">Tervezett lejárat (${b.duration} húzás)</div>
+              <div class="text-xs font-extrabold text-white mt-0.5">${previewExpiry}</div>
+            </div>
+            <span class="px-2.5 py-1 rounded-xl text-[11px] font-bold" style="background:${g.bgSoft}; color:${g.color}">
+              ${b.duration}× húzás
+            </span>
+          </div>
+
+          <!-- Stake Multiplier (Puttó, Napi Mázli, Kenó) -->
+          ${g.supportsMultiplier ? `
+            <div class="space-y-1.5">
+              <label class="text-xs font-semibold text-slate-200">Tét szorzó:</label>
+              <div class="grid grid-cols-5 gap-1.5">
+                ${g.multipliers.map(m => `
+                  <button onclick="state.builder.multiplier=${m}; render()" class="py-2 rounded-xl text-xs font-extrabold border transition ${b.multiplier === m ? 'text-white' : 'bg-oled-bg border-oled-border text-oled-muted'}" style="${b.multiplier === m ? `background:${g.bgSoft}; border-color:${g.color}` : ''}">
+                    ${m}×
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Optional Add-on Joker -->
+          ${g.supportsJoker ? `
+            <div class="pt-2 border-t border-oled-border space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                    <span>Joker játék hozzáadása</span>
+                  </div>
+                  <div class="text-[11px] text-oled-muted">6 jegyű kiegészítő számsor</div>
+                </div>
+                <div onclick="state.builder.hasJoker=!state.builder.hasJoker; render()" class="ios-switch ${b.hasJoker ? 'active' : ''}">
+                  <div class="ios-switch-thumb"></div>
+                </div>
+              </div>
+
+              ${b.hasJoker ? renderJokerDigitRoller() : ''}
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Submit Button -->
+        <button onclick="validateAndSaveTicket()" class="w-full py-4 rounded-2xl font-extrabold text-sm text-slate-950 shadow-xl active:scale-95 transition flex items-center justify-center gap-2" style="background:${g.color}">
+          <span>Szelvény mentése (${b.duration} húzás)</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </button>
+      `;
+
+      return html;
+    }
+
+    function renderBuilderInteractiveGrid() {
+      const b = state.builder;
+      const g = GAMES[b.gameId];
+      const f = b.fields[b.activeFieldIdx];
+
+      if (b.gameId === 'otos' || b.gameId === 'hatos' || b.gameId === 'skandi' || b.gameId === 'keno') {
+        const targetCount = b.gameId === 'keno'
+          ? `${b.kenoType} db`
+          : (b.mode === 'combo' ? `${g.comboMin}–${g.comboMax} db` : `${g.pickCount} db`);
+        const cols = g.maxNum >= 80 ? 'grid-cols-8' : (g.maxNum >= 45 ? 'grid-cols-7' : 'grid-cols-7');
+
+        return `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-oled-muted">Kiválasztva: <strong class="text-white font-mono">${f.numbers.length}</strong> / ${targetCount}</span>
+              ${f.numbers.length > 0 ? `<button onclick="state.builder.fields[${b.activeFieldIdx}].numbers=[]; render()" class="text-[11px] text-rose-400 font-semibold">Törlés</button>` : ''}
+            </div>
+            <div class="grid ${cols} gap-1.5">
+              ${Array.from({ length: g.maxNum }, (_, i) => i + 1).map(num => {
+                const selected = f.numbers.includes(num);
+                return `
+                  <button onclick="toggleBuilderNumber(${num}, 'main')" class="lotto-ball aspect-square rounded-full text-xs font-bold font-mono flex items-center justify-center border ${selected ? 'text-slate-950 font-extrabold shadow-md' : 'bg-oled-bg border-oled-border text-slate-300'}" style="${selected ? `background:${g.color}; border-color:${g.color}` : ''}">
+                    ${num}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      if (b.gameId === 'euro' || b.gameId === 'putto') {
+        const reqA = b.mode === 'combo' ? `${g.pickCountA}–${g.comboMaxA}` : `${g.pickCountA}`;
+        const reqB = b.mode === 'combo' ? `${g.pickCountB}–${g.comboMaxB}` : `${g.pickCountB}`;
+
+        return `
+          <div class="space-y-4">
+            <!-- Field A -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-slate-200">"A" mező (${f.numbersA.length} / ${reqA} db)</span>
+                ${f.numbersA.length > 0 ? `<button onclick="state.builder.fields[${b.activeFieldIdx}].numbersA=[]; render()" class="text-[11px] text-rose-400 font-semibold">Törlés</button>` : ''}
+              </div>
+              <div class="grid grid-cols-7 gap-1.5">
+                ${Array.from({ length: g.maxNumA }, (_, i) => i + 1).map(num => {
+                  const selected = f.numbersA.includes(num);
+                  return `
+                    <button onclick="toggleBuilderNumber(${num}, 'A')" class="lotto-ball aspect-square rounded-full text-xs font-bold font-mono flex items-center justify-center border ${selected ? 'text-slate-950 font-extrabold' : 'bg-oled-bg border-oled-border text-slate-300'}" style="${selected ? `background:${g.color}; border-color:${g.color}` : ''}">
+                      ${num}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <!-- Field B -->
+            <div class="space-y-1.5 pt-2 border-t border-oled-border">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-amber-400">"B" ${b.gameId === 'euro' ? 'Euro ' : ''}mező (${f.numbersB.length} / ${reqB} db)</span>
+                ${f.numbersB.length > 0 ? `<button onclick="state.builder.fields[${b.activeFieldIdx}].numbersB=[]; render()" class="text-[11px] text-rose-400 font-semibold">Törlés</button>` : ''}
+              </div>
+              <div class="grid grid-cols-6 gap-1.5">
+                ${Array.from({ length: g.maxNumB }, (_, i) => i + 1).map(num => {
+                  const selected = f.numbersB.includes(num);
+                  return `
+                    <button onclick="toggleBuilderNumber(${num}, 'B')" class="lotto-ball aspect-square rounded-full text-xs font-bold font-mono flex items-center justify-center border ${selected ? 'bg-amber-400 border-amber-300 text-slate-950 font-extrabold' : 'bg-oled-bg border-amber-500/30 text-amber-200'}">
+                      ${num}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (b.gameId === 'mazli') {
+        const maxDay = new Date(f.year, f.month, 0).getDate();
+        if (f.day > maxDay) f.day = maxDay;
+
+        return `
+          <div class="space-y-4">
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="text-[10px] font-bold text-oled-muted uppercase">Év</label>
+                <select onchange="state.builder.fields[${b.activeFieldIdx}].year=Number(this.value); render()" class="mt-1 w-full px-2.5 py-2.5 rounded-xl bg-oled-bg border border-oled-border text-xs font-bold text-white">
+                  ${Array.from({ length: 107 }, (_, i) => 2026 - i).map(y => `
+                    <option value="${y}" ${f.year === y ? 'selected' : ''}>${y}</option>
+                  `).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold text-oled-muted uppercase">Hónap</label>
+                <select onchange="state.builder.fields[${b.activeFieldIdx}].month=Number(this.value); render()" class="mt-1 w-full px-2.5 py-2.5 rounded-xl bg-oled-bg border border-oled-border text-xs font-bold text-white">
+                  ${HU_MONTHS_FULL.map((mName, idx) => `
+                    <option value="${idx + 1}" ${f.month === idx + 1 ? 'selected' : ''}>${mName}</option>
+                  `).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold text-oled-muted uppercase">Nap</label>
+                <select onchange="state.builder.fields[${b.activeFieldIdx}].day=Number(this.value); render()" class="mt-1 w-full px-2.5 py-2.5 rounded-xl bg-oled-bg border border-oled-border text-xs font-bold text-white">
+                  ${Array.from({ length: maxDay }, (_, i) => i + 1).map(d => `
+                    <option value="${d}" ${f.day === d ? 'selected' : ''}>${d}.</option>
+                  `).join('')}
+                </select>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-bold text-oled-muted uppercase">Szerencseszimbólum választása</label>
+              <div class="grid grid-cols-5 gap-1.5">
+                ${MAZLI_SYMBOLS.map(sym => {
+                  const sel = f.symbol === sym.id;
+                  return `
+                    <button onclick="state.builder.fields[${b.activeFieldIdx}].symbol='${sym.id}'; render()" class="p-2 rounded-2xl border flex flex-col items-center justify-center gap-1 transition active:scale-95 ${sel ? 'bg-pink-500/20 border-pink-500 text-white' : 'bg-oled-bg border-oled-border text-oled-muted'}">
+                      <span class="text-lg">${sym.icon}</span>
+                      <span class="text-[9px] font-bold truncate w-full text-center">${sym.name}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (b.gameId === 'joker') {
+        return renderJokerDigitRoller();
+      }
+
+      return '';
+    }
+
+    function renderJokerDigitRoller() {
+      const digits = state.builder.jokerNumber.split('');
+      return `
+        <div class="p-3 rounded-2xl bg-oled-bg border border-cyan-500/30 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-cyan-400">6 jegyű Joker számsor</span>
+            <button onclick="state.builder.jokerNumber=generateRandomJoker(); render()" class="text-[11px] font-bold text-cyan-300 bg-cyan-500/15 px-2.5 py-1 rounded-lg">
+              🎲 Véletlen Joker
+            </button>
+          </div>
+          <div class="grid grid-cols-6 gap-1.5">
+            ${digits.map((d, pos) => `
+              <div class="flex flex-col items-center bg-oled-card border border-oled-border rounded-xl py-1">
+                <button onclick="stepJokerDigit(${pos}, 1)" class="w-full py-1 text-xs font-bold text-cyan-400 hover:text-white active:scale-90">▲</button>
+                <span class="text-base font-extrabold font-mono text-white py-0.5">${d}</span>
+                <button onclick="stepJokerDigit(${pos}, -1)" class="w-full py-1 text-xs font-bold text-cyan-400 hover:text-white active:scale-90">▼</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    /*************************************************************************
+     * 12. UI RENDERING — 3. FÜL: ELLENŐRZÉS ("MENNYIT TALÁLTAM EL?")
+     *************************************************************************/
+    function renderCheckView() {
+      const gameId = state.checkGame;
+      const g = GAMES[gameId];
+      const winObj = ensureWinningDrawObj(gameId);
+      const matchingTickets = state.tickets.filter(t => t.gameId === gameId);
+
+      // Compute overall matched count across all tickets for this game
+      let totalMatchedNumbers = 0;
+      let bestTicketLabel = '';
+      matchingTickets.forEach(t => {
+        const ev = evaluateTicketHits(t);
+        if (ev) {
+          totalMatchedNumbers += ev.totalMatchedNumbers;
+          if (!bestTicketLabel && ev.totalMatchedNumbers > 0) {
+            bestTicketLabel = ev.bestSummary;
+          }
+        }
+      });
+
+      let html = `
+        <!-- Game Tabs for Checking -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          ${Object.values(GAMES).map(item => {
+            const count = state.tickets.filter(t => t.gameId === item.id).length;
+            const active = item.id === gameId;
+            return `
+              <button onclick="state.checkGame='${item.id}'; saveState(); render()" class="px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap border flex items-center gap-1.5 transition ${active ? 'text-white' : 'bg-oled-card text-oled-muted border-oled-border'}" style="${active ? `background:${item.bgSoft}; border-color:${item.color}` : ''}">
+                <span class="w-2 h-2 rounded-full" style="background:${item.color}"></span>
+                <span>${item.shortName}</span>
+                ${count > 0 ? `<span class="px-1.5 py-0.2 rounded-full text-[10px] bg-black/40 text-white font-mono">${count}</span>` : ''}
+              </button>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Global Summary Bar ("Mennyit találtam el?") -->
+        <div class="p-3.5 rounded-2xl border flex items-center justify-between gap-2 ${totalMatchedNumbers > 0 ? 'bg-emerald-950/35 border-emerald-500/45' : 'bg-oled-card border-oled-border'}">
+          <div>
+            <div class="text-[11px] text-oled-muted font-medium">Megjátszott számaidból eltalálva (${g.shortName}):</div>
+            <div class="text-sm font-extrabold ${totalMatchedNumbers > 0 ? 'text-emerald-400' : 'text-slate-300'} mt-0.5">
+              ${totalMatchedNumbers > 0 ? `${totalMatchedNumbers} db találat! ${bestTicketLabel ? `• ${bestTicketLabel}` : ''}` : 'Jelöld ki a kihúzott nyerőszámokat alább!'}
+            </div>
+          </div>
+          <span class="text-2xl">${totalMatchedNumbers > 0 ? '🏆' : '🎯'}</span>
+        </div>
+
+        <!-- Winning Numbers Input Card -->
+        <div class="bg-oled-card border rounded-3xl p-4 space-y-3" style="border-color:${g.borderSoft}">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h2 class="text-sm font-extrabold text-white">${g.name} — Kihúzott nyerőszámok</h2>
+              <p class="text-[11px] text-oled-muted">Koppints a számokra vagy próbáld ki a szimulációt!</p>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="clearWinningNumbers('${gameId}')" class="px-2.5 py-1.5 rounded-xl bg-oled-elevated text-oled-muted hover:text-white text-[11px] font-bold">
+                Törlés
+              </button>
+              <button onclick="generateSampleWinningNumbers('${gameId}')" class="px-3 py-1.5 rounded-xl font-extrabold text-[11px] text-slate-950 shadow active:scale-95 transition" style="background:${g.color}">
+                ✨ Példa nyerőszámok generálása
+              </button>
+            </div>
+          </div>
+
+          ${renderWinningInputGrid(gameId, g, winObj)}
+        </div>
+
+        <!-- Evaluated Tickets List -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between px-1">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-oled-muted">Szelvényeid kiértékelése (${matchingTickets.length} db)</h3>
+          </div>
+
+          ${matchingTickets.length === 0 ? `
+            <div class="bg-oled-card border border-oled-border rounded-3xl p-6 text-center space-y-2.5">
+              <p class="text-xs text-oled-muted">Még nincs rögzített <strong class="text-white">${g.name}</strong> szelvényed.</p>
+              <button onclick="navigateTo('new', { resetBuilder: true, gameId: '${gameId}' })" class="px-4 py-2 rounded-xl font-bold text-xs text-slate-950" style="background:${g.color}">
+                + ${g.name} szelvény létrehozása
+              </button>
+            </div>
+          ` : matchingTickets.map(t => renderTicketCard(t)).join('')}
+        </div>
+      `;
+
+      return html;
+    }
+
+    function renderWinningInputGrid(gameId, g, winObj) {
+      if (gameId === 'otos' || gameId === 'hatos' || gameId === 'keno') {
+        const req = gameId === 'keno' ? 20 : g.pickCount;
+        const selected = winObj.numbers || [];
+        const cols = gameId === 'keno' ? 'grid-cols-8' : 'grid-cols-7';
+
+        return `
+          <div class="space-y-2">
+            <div class="text-xs text-oled-muted">Kihúzott számok: <strong class="text-white font-mono">${selected.length} / ${req}</strong></div>
+            <div class="grid ${cols} gap-1.5">
+              ${Array.from({ length: g.maxNum }, (_, i) => i + 1).map(num => {
+                const isSel = selected.includes(num);
+                return `
+                  <button onclick="toggleWinningNumber('${gameId}', ${num}, 'numbers')" class="lotto-ball aspect-square rounded-full text-xs font-bold font-mono flex items-center justify-center border ${isSel ? 'ball-hit' : 'bg-oled-bg border-oled-border text-slate-300'}">
+                    ${num}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      if (gameId === 'skandi') {
+        const gepi = winObj.gepi || [];
+        const kezi = winObj.kezi || [];
+        return `
+          <div class="space-y-4">
+            <div class="space-y-1.5">
+              <div class="text-xs font-bold text-blue-400">1. Gépi sorsolás számai (${gepi.length} / 7):</div>
+              <div class="grid grid-cols-7 gap-1.5">
+                ${Array.from({ length: 35 }, (_, i) => i + 1).map(num => `
+                  <button onclick="toggleWinningNumber('skandi', ${num}, 'gepi')" class="lotto-ball aspect-square rounded-full text-xs font-bold font-mono flex items-center justify-center border ${gepi.includes(num) ? 'ball-hit' : 'bg-oled-bg border-oled-border text-slate-300'}">
+                    ${num}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            <div class="space-y-1.5 pt-2 border-t border-oled-border">
+              <div class="text-xs font-bold text-cyan-400">2. Kézi sorsolás számai (${kezi.length} / 7):</div>
+              <div class="grid grid-cols-7 gap-1.5">
+                ${Array.from({ length: 35 }, (_, i) => i + 1).map(num => `
+                  <button onclick="toggleWinningNumber('skandi', ${num}, 'kezi')" class="lotto-ball aspect-square rounded-full text-xs font-bold font-mono flex items-center justify-center border ${kezi.includes(num) ? 'ball-hit-gold' : 'bg-oled-bg border-oled-border text-slate-300'}">
+                    ${num}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (gameId === 'euro' || gameId === 'putto') {
+        const selA = winObj.numbersA || [];
+        const selB = gameId === 'euro' ? (winObj.numbersB || []) : (winObj.numberB ? [winObj.numberB] : []);
+        return `
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <div class="text-xs font-bold text-slate-200">"A" mező nyerőszámai (${selA.length} / ${g.pickCountA}):</div>
+              <div class="grid grid-cols-7 gap-1.5">
+                ${Array.from({ length: g.maxNumA }, (_, i) => i + 1).map(num => `
+                  <button onclick="toggleWinningNumber('${gameId}', ${num}, 'numbersA')" class="lotto-ball aspect-square rounded-full text-xs font-bold font-mono flex items-center justify-center border ${selA.includes(num) ? 'ball-hit' : 'bg-oled-bg border-oled-border text-slate-300'}">
+                    ${num}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            <div class="space-y-1.5 pt-2 border-t border-oled-border">
+              <div class="text-xs font-bold text-amber-400">"B" mező nyerőszámai (${selB.length} / ${g.pickCountB}):</div>
+              <div class="grid grid-cols-6 gap-1.5">
+                ${Array.from({ length: g.maxNumB }, (_, i) => i + 1).map(num => `
+                  <button onclick="toggleWinningNumber('${gameId}', ${num}, '${gameId === 'euro' ? 'numbersB' : 'numberB'}')" class="lotto-ball aspect-square rounded-full text-xs font-bold font-mono flex items-center justify-center border ${selB.includes(num) ? 'ball-hit-gold' : 'bg-oled-bg border-amber-500/30 text-amber-200'}">
+                    ${num}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (gameId === 'mazli') {
+        const maxDay = new Date(winObj.year || 1990, winObj.month || 5, 0).getDate();
+        return `
+          <div class="space-y-3">
+            <div class="grid grid-cols-3 gap-2">
+              <select onchange="state.winningDraws.mazli.year=Number(this.value); saveState(); render()" class="px-2.5 py-2 rounded-xl bg-oled-bg border border-oled-border text-xs font-bold text-white">
+                ${Array.from({ length: 107 }, (_, i) => 2026 - i).map(y => `
+                  <option value="${y}" ${winObj.year === y ? 'selected' : ''}>${y}</option>
+                `).join('')}
+              </select>
+              <select onchange="state.winningDraws.mazli.month=Number(this.value); saveState(); render()" class="px-2.5 py-2 rounded-xl bg-oled-bg border border-oled-border text-xs font-bold text-white">
+                ${HU_MONTHS_FULL.map((mName, idx) => `
+                  <option value="${idx + 1}" ${winObj.month === idx + 1 ? 'selected' : ''}>${mName}</option>
+                `).join('')}
+              </select>
+              <select onchange="state.winningDraws.mazli.day=Number(this.value); saveState(); render()" class="px-2.5 py-2 rounded-xl bg-oled-bg border border-oled-border text-xs font-bold text-white">
+                ${Array.from({ length: maxDay }, (_, i) => i + 1).map(d => `
+                  <option value="${d}" ${winObj.day === d ? 'selected' : ''}>${d}.</option>
+                `).join('')}
+              </select>
+            </div>
+            <div class="grid grid-cols-5 gap-1.5">
+              ${MAZLI_SYMBOLS.map(sym => `
+                <button onclick="state.winningDraws.mazli.symbol='${sym.id}'; saveState(); render()" class="p-2 rounded-2xl border flex flex-col items-center gap-1 ${winObj.symbol === sym.id ? 'bg-pink-500/25 border-pink-400 text-white' : 'bg-oled-bg border-oled-border text-oled-muted'}">
+                  <span class="text-base">${sym.icon}</span>
+                  <span class="text-[9px] font-bold truncate w-full text-center">${sym.name}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      if (gameId === 'joker') {
+        const digits = (winObj.joker || '000000').split('');
+        return `
+          <div class="grid grid-cols-6 gap-1.5">
+            ${digits.map((d, pos) => `
+              <div class="flex flex-col items-center bg-oled-bg border border-oled-border rounded-xl py-1">
+                <button onclick="stepWinningJokerDigit(${pos}, 1)" class="w-full py-1 text-xs font-bold text-cyan-400">▲</button>
+                <span class="text-base font-extrabold font-mono text-white py-0.5">${d}</span>
+                <button onclick="stepWinningJokerDigit(${pos}, -1)" class="w-full py-1 text-xs font-bold text-cyan-400">▼</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      return '';
+    }
+
+    /*************************************************************************
+     * 13. UI RENDERING — 4. FÜL: KEDVENCEK, STATISZTIKA ÉS MENTÉS
+     *************************************************************************/
+    function renderFavoritesView() {
+      const totalTickets = state.tickets.length;
+      const totalCombos = state.tickets.reduce((sum, t) => sum + calculateTicketCombinations(t), 0);
+
+      // Game breakdown
+      const byGame = Object.values(GAMES).map(g => ({
+        ...g,
+        count: state.tickets.filter(t => t.gameId === g.id).length
+      })).filter(item => item.count > 0);
+
+      let html = `
+        <!-- Saved Lucky Favorites -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between px-1">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-oled-muted">Saját szerencseszámok (${state.favorites.length})</h2>
+            <button onclick="navigateTo('new', { resetBuilder: true })" class="text-xs font-bold text-emerald-400">+ Új rögzítése</button>
+          </div>
+
+          ${state.favorites.length === 0 ? `
+            <div class="bg-oled-card border border-oled-border rounded-3xl p-6 text-center space-y-2">
+              <p class="text-xs text-oled-muted">Még nincs elmentett kedvenc számsorod. Az <strong class="text-white">Új szelvény</strong> oldalon a ⭐ gombbal mentheted el kedvenc tippjeidet!</p>
+            </div>
+          ` : state.favorites.map(fav => {
+            const g = GAMES[fav.gameId] || GAMES.otos;
+            return `
+              <div class="bg-oled-card border border-oled-border rounded-2xl p-3.5 flex items-center justify-between gap-2">
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full" style="background:${g.color}"></span>
+                    <span class="text-xs font-extrabold text-white">${fav.name}</span>
+                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-oled-elevated text-oled-muted">${g.shortName}</span>
+                  </div>
+                  <div class="flex items-center gap-1 flex-wrap font-mono">
+                    ${fav.numbers ? fav.numbers.map(n => `<span class="w-6 h-6 rounded-full bg-oled-elevated border border-oled-border text-[11px] font-bold flex items-center justify-center text-slate-200">${n}</span>`).join('') : ''}
+                    ${fav.numbersA ? fav.numbersA.map(n => `<span class="w-6 h-6 rounded-full bg-oled-elevated border border-oled-border text-[11px] font-bold flex items-center justify-center text-slate-200">${n}</span>`).join('') : ''}
+                    ${fav.numbersB ? fav.numbersB.map(n => `<span class="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 text-[11px] font-bold flex items-center justify-center text-amber-300">${n}</span>`).join('') : ''}
+                    ${fav.jokerNumber ? `<span class="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 text-xs font-bold">${fav.jokerNumber}</span>` : ''}
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                  <button onclick="playFavorite('${fav.id}')" class="px-3 py-2 rounded-xl font-bold text-xs text-slate-950 active:scale-95 transition" style="background:${g.color}">
+                    Megjátszás
+                  </button>
+                  <button onclick="deleteFavorite('${fav.id}')" class="p-2 rounded-xl bg-oled-elevated text-oled-muted hover:text-rose-400">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Statistics Card -->
+        <div class="bg-oled-card border border-oled-border rounded-3xl p-4 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-oled-muted">Szelvény statisztikák</h3>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="p-3 rounded-2xl bg-oled-bg border border-oled-border">
+              <div class="text-[11px] text-oled-muted">Összes rögzített szelvény</div>
+              <div class="text-xl font-extrabold text-white font-mono mt-0.5">${totalTickets} db</div>
+            </div>
+            <div class="p-3 rounded-2xl bg-oled-bg border border-oled-border">
+              <div class="text-[11px] text-oled-muted">Összes alapjáték / kombináció</div>
+              <div class="text-xl font-extrabold text-emerald-400 font-mono mt-0.5">${totalCombos} db</div>
+            </div>
+          </div>
+
+          ${byGame.length > 0 ? `
+            <div class="space-y-2 pt-1">
+              ${byGame.map(item => {
+                const pct = Math.round((item.count / totalTickets) * 100);
+                return `
+                  <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                      <span class="font-semibold text-slate-200">${item.name}</span>
+                      <span class="font-mono text-oled-muted">${item.count} db (${pct}%)</span>
+                    </div>
+                    <div class="w-full h-1.5 rounded-full bg-oled-bg overflow-hidden">
+                      <div class="h-full rounded-full" style="width:${pct}%; background:${item.color}"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Backup & Reset Card -->
+        <div class="bg-oled-card border border-oled-border rounded-3xl p-4 space-y-2.5">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-oled-muted">Adatmentés és biztonsági mentés</h3>
+          <p class="text-[11px] text-oled-muted leading-relaxed">
+            Minden adatod helyileg az iPhone böngészőjében tárolódik. Itt másolhatod vagy visszaállíthatod a biztonsági mentést.
+          </p>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button onclick="exportBackup()" class="py-2.5 px-3 rounded-xl bg-oled-elevated border border-oled-border text-xs font-bold text-white active:scale-95 transition">
+              📋 Mentés másolása
+            </button>
+            <button onclick="openImportModal()" class="py-2.5 px-3 rounded-xl bg-oled-elevated border border-oled-border text-xs font-bold text-white active:scale-95 transition">
+              📥 Visszaállítás
+            </button>
+            <button onclick="seedInitialSampleData(); render(); showToast('Minta adatok újratöltve!', 'success')" class="py-2.5 px-3 rounded-xl bg-oled-elevated border border-oled-border text-xs font-bold text-amber-300 active:scale-95 transition">
+              ✨ Minta szelvények
+            </button>
+            <button onclick="confirmClearAll()" class="py-2.5 px-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs font-bold text-rose-400 active:scale-95 transition">
+              🗑️ Összes törlése
+            </button>
+          </div>
+        </div>
+      `;
+
+      return html;
+    }
+
+    function playFavorite(favId) {
+      const fav = state.favorites.find(f => f.id === favId);
+      if (!fav) return;
+      const g = GAMES[fav.gameId];
+
+      let prefill = { mode: 'normal' };
+      if (fav.numbers) {
+        if (fav.gameId === 'keno') prefill.kenoType = fav.numbers.length;
+        else if (g.pickCount && fav.numbers.length > g.pickCount) prefill.mode = 'combo';
+        prefill.fields = [{ numbers: [...fav.numbers] }];
+      } else if (fav.numbersA) {
+        if ((g.pickCountA && fav.numbersA.length > g.pickCountA) || (g.pickCountB && fav.numbersB.length > g.pickCountB)) {
+          prefill.mode = 'combo';
+        }
+        prefill.fields = [{ numbersA: [...fav.numbersA], numbersB: [...(fav.numbersB || [])] }];
+      } else if (fav.mazliData) {
+        prefill.fields = [{ ...fav.mazliData }];
+      } else if (fav.jokerNumber) {
+        prefill.jokerNumber = fav.jokerNumber;
+      }
+
+      navigateTo('new', { resetBuilder: true, gameId: fav.gameId, prefill });
+      showToast(`"${fav.name}" betöltve!`, 'success');
+    }
+
+    function deleteFavorite(favId) {
+      state.favorites = state.favorites.filter(f => f.id !== favId);
+      saveState();
+      showToast('Kedvenc törölve.', 'info');
+      render();
+    }
+
+    function exportBackup() {
+      const payload = JSON.stringify({
+        tickets: state.tickets,
+        favorites: state.favorites,
+        winningDraws: state.winningDraws
+      });
+      const ta = document.createElement('textarea');
+      ta.value = payload;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('Biztonsági mentés a vágólapra másolva! 📋', 'success');
+      } catch (e) {
+        showToast('Másolás nem sikerült.', 'warning');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function openImportModal() {
+      openModal({
+        title: 'Mentés visszaállítása',
+        body: 'Illeszd be a korábban kimásolt JSON mentési kódot:',
+        customHtml: `<textarea id="import-json-input" rows="4" placeholder='{"tickets":[...]}' class="w-full p-3 rounded-2xl bg-oled-bg border border-oled-border text-xs font-mono text-slate-200 focus:outline-none"></textarea>`,
+        confirmText: 'Betöltés',
+        onConfirm: () => {
+          try {
+            const val = document.getElementById('import-json-input').value.trim();
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed.tickets)) state.tickets = parsed.tickets;
+            if (Array.isArray(parsed.favorites)) state.favorites = parsed.favorites;
+            if (parsed.winningDraws) state.winningDraws = parsed.winningDraws;
+            saveState();
+            render();
+            showToast('Adatok sikeresen visszaállítva! ✅', 'success');
+          } catch (e) {
+            showToast('Érvénytelen JSON mentési formátum!', 'warning');
+          }
+        }
+      });
+    }
+
+    function confirmClearAll() {
+      openModal({
+        title: 'Minden adat törlése',
+        body: 'Biztosan törlöd az összes szelvényt, kedvencet és nyerőszámot?',
+        confirmText: 'Mindent törlök',
+        confirmClass: 'bg-red-500 text-white',
+        onConfirm: () => {
+          state.tickets = [];
+          state.favorites = [];
+          state.winningDraws = {};
+          saveState();
+          render();
+          showToast('Minden adat törölve.', 'info');
+        }
+      });
+    }
+
+    /*************************************************************************
+     * 14. FŐ RENDER CIKLUS ÉS INICIALIZÁLÁS
+     *************************************************************************/
+    function render() {
+      const main = document.getElementById('main-content');
+      const subtitle = document.getElementById('header-subtitle');
+
+      if (state.activeTab === 'tickets') {
+        subtitle.textContent = 'Aktív szelvények & lejáratfigyelő';
+        main.innerHTML = renderTicketsView();
+      } else if (state.activeTab === 'new') {
+        subtitle.textContent = 'Új szelvény & játékmód választó';
+        main.innerHTML = renderNewTicketView();
+      } else if (state.activeTab === 'check') {
+        subtitle.textContent = 'Nyerőszámok & élő találatellenőrzés';
+        main.innerHTML = renderCheckView();
+      } else if (state.activeTab === 'favorites') {
+        subtitle.textContent = 'Kedvenc számsorok & statisztika';
+        main.innerHTML = renderFavoritesView();
+      }
+
+      updateBadges();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      initBuilder('otos');
+      render();
+    });
+  </script>
 </body>
 </html>
